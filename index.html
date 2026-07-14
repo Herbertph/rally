@@ -66,6 +66,7 @@
   .card.levantamento .top{background:var(--amber)}
   .card.corte .top{background:var(--red)}
   .card.saque .top{background:var(--green)}
+  .card.bloqueio .top{background:#7a52c7}
   .card .icon{flex:1;display:flex;align-items:center;justify-content:center;font-size:30px}
   .card .stats{display:flex;border-top:1px dashed rgba(0,0,0,.2)}
   .card .stat{flex:1;text-align:center;padding:4px 2px;font-weight:700}
@@ -156,7 +157,7 @@
 <body>
 
 <header>
-  <div class="logo">RALLY<span>!</span> <small>v0.5</small> <span id="connBadge"></span></div>
+  <div class="logo">RALLY<span>!</span> <small>v0.6</small> <span id="connBadge"></span></div>
   <div class="score">
     <div class="pt" id="scoreWrap1"><small id="scoreName1">Jogador 1</small><span id="score1">0</span></div>
     <div style="font-size:20px;color:var(--muted)">×</div>
@@ -267,14 +268,14 @@
 ===================================================== */
 const CORTE_THRESHOLD = 4;
 const POINTS_TO_WIN   = 3;
-const ICONS = {manchete:'🙌', levantamento:'👐', corte:'💥', saque:'🏐'};
+const ICONS = {manchete:'🙌', levantamento:'👐', corte:'💥', saque:'🏐', bloqueio:'✋'};
 
 /* ---------------- i18n ---------------- */
 const T = {
 pt: {
-  cards:{manchete:'Manchete', levantamento:'Levantamento', corte:'Corte', saque:'Saque'},
-  def:'DEF', atk:'ATQ', attackStat:'ATAQUE', special:'especial',
-  cardLabelFull:'{name} (Def {def} / Atq {atk})', cardLabelCorte:'Corte (Atq {atk})',
+  cards:{manchete:'Manchete', levantamento:'Levantamento', corte:'Corte', saque:'Saque', bloqueio:'Bloqueio'},
+  def:'DEF', atk:'ATQ', attackStat:'ATAQUE', special:'especial', blk:'BLOQ', srvStat:'🏐SAQ',
+  cardLabelFull:'{name} (Def {def} / Atq {atk})', cardLabelCorte:'Corte (Atq {atk})', cardLabelBloq:'Bloqueio (Bloq {blk})',
   btnRules:'Regras', btnNew:'Nova partida', btnAgain:'Jogar de novo', btnCloseRules:'Fechar',
   marketTitle:'Mercado & Deck', logTitle:'Narração',
   autoRefill:'Completar do deck', refillHintTxt:'Refill: pegue cartas do mercado ou do deck até ter {n} na mão.',
@@ -282,7 +283,7 @@ pt: {
   handPlayer:'Mão — Jogador {n}', handMine:'Sua mão — Jogador {n}', handOpp:'Jogador {n} (oponente)',
   scorePlayer:'Jogador {n}', scoreYou:'Você (J{n})', scoreOpp:'Oponente (J{n})',
   badgeLocal:'MODO LOCAL', badgeHost:'SALA {code} • VOCÊ É O J1', badgeGuest:'ONLINE • VOCÊ É O J2',
-  lobbySub:'O card game de vôlei — protótipo v0.5',
+  lobbySub:'O card game de vôlei — protótipo v0.6',
   btnLocal:'🎮 Jogar local (2 no mesmo aparelho)', btnCreate:'🌐 Criar sala online', btnJoin:'🔗 Entrar em uma sala',
   yourRoom:'Sua sala', copyLink:'📋 Copiar link de convite', copied:'✅ Link copiado!',
   creating:'Criando sala...', connectingServer:'Conectando ao servidor de salas...', waiting:'Sala pronta! Aguardando oponente...',
@@ -303,18 +304,19 @@ pt: {
   stNoDefCorte:' (Corte)', btnSuffer:'Sofrer o ponto',
   stBuild:'⚔️ <b>{J}</b>: {hint} Ataque acumulado: <b>{atk}</b>.',
   hintDig:'Recebeu de peixinho — só resta devolver a bola livre.',
-  hintAfterBump:'Jogue um Levantamento para armar o Corte, ou passe a bola livre.',
-  hintAfterSet:'Jogue um Corte para atacar com força, ou passe a bola.',
-  hintLevOnly:'Defesa com Levantamento não arma Corte — só resta passar a bola.',
+  hintAfterBump:'Jogue um Levantamento para armar o Corte, salve com outra carta, ou passe a bola livre.',
+  hintAfterSet:'Jogue um Corte para atacar com força, salve com outra carta, ou passe a bola.',
+  hintOpen:'Você pode jogar até 3 cartas na jogada (Manchete/Levantamento salvam a bola) ou passar.',
+  hint3:'3 toques usados — só resta passar a bola.',
   btnPass:'Passar a bola (ataque {n})',
   stRefill:'🃏 <b>{J}</b>: complete sua mão para {n} cartas — clique nas cartas do mercado, no deck, ou use "{auto}".',
   errCorteNoDef:'Corte só recebe bola livre (poder 0), não defende ataques!',
   errCorteOnlyM:'Um Corte só pode ser defendido por Manchete!',
   errDefLow:'Defesa {def} não alcança o poder {power} do ataque.',
   errDig:'Recebeu de peixinho — não dá pra armar nada, só passar a bola.',
-  errCorteOrder:'O Corte só pode vir após um Levantamento (que veio após Manchete).',
-  errSetOrder:'O Levantamento só entra na sequência após uma Manchete.',
-  errBumpOrder:'A Manchete só pode iniciar a jogada (defesa), não continuar a sequência.',
+  errCorteOrder:'O Corte precisa vir imediatamente após um Levantamento.',
+  errMaxTouches:'Máximo de 3 toques por jogada — passe a bola.',
+  errBlock:'O Bloqueio só entra contra Cortes — e nunca contra saques!',
   lg:{
     newGame:'🏐 Nova partida! Jogador 1 tem a carta de Saque. Primeiro a 3 pontos vence.',
     reshuffle:'♻️ Descarte reembaralhado no deck.',
@@ -325,6 +327,9 @@ pt: {
     defend:'J{p} defende o ataque de poder {power} com {card} ✅',
     set:'J{p} levanta com {card}.',
     spike:'J{p} CORTA com {card}! 💥',
+    save:'J{p} salva a bola com {card}.',
+    blockKill:'✋ J{p} sobe pro BLOQUEIO e mata o corte de poder {power}! A bola volta como passe de poder {blk}.',
+    blockSoft:'✋ J{p} amortece no bloqueio (−{blk}): a bola cai mansa, poder {power}, e deixa de ser Corte.',
     ret:'J{p} devolve a bola — ataque de poder <b>{power}</b>{c}.',
     retCorte:' (Corte!)', retFree:' (bola livre)',
     buyMarket:'J{p} compra {card} do mercado.',
@@ -336,36 +341,39 @@ pt: {
     topup:'J{p} completa a mão para 3 antes do novo rally.'
   },
   rulesHtml:`
-    <h2>Regras (v0.5)</h2>
-    <h4>Cartas — deck de 30</h4>
+    <h2>Regras (v0.6)</h2>
+    <h4>Cartas — deck de 33 + Saque</h4>
     <ul>
-      <li><b>🙌 Manchete (×12)</b> — defende qualquer jogada. Seu ataque só conta junto ao Saque. Pode passar a bola sozinha (bola livre, ataque 0).</li>
-      <li><b>👐 Levantamento (×9)</b> — defende ataques que não sejam Corte. Só sustenta um Corte se vier depois de uma Manchete na mesma jogada.</li>
-      <li><b>💥 Corte (×9)</b> — só pode ser jogado após um Levantamento (que veio após Manchete). Só pode ser defendido por Manchete.</li>
-      <li><b>🏐 Saque</b> — inicia o rally, jogado junto de 1 carta da mão; o ataque dessa carta define o poder do saque. Poder ≥ 4 = saque-corte (só Manchete defende).</li>
+      <li><b>🙌 Manchete (×12)</b> — defende qualquer jogada. Seu número de ataque é o <b>SAQ</b>: só vale quando jogada junto ao Saque.</li>
+      <li><b>👐 Levantamento (×9)</b> — defende ataques que não sejam Corte. Na construção, define o poder do passe e arma o Corte.</li>
+      <li><b>💥 Corte (×9)</b> — encerra a jogada e precisa vir logo após um Levantamento (qualquer um, até o da defesa). Só cai para Manchete (ou Bloqueio).</li>
+      <li><b>✋ Bloqueio (×3)</b> — só entra contra Cortes, <b>nunca contra saques</b>. Bloqueio ≥ poder: <b>bloqueio seco</b> — a bola volta pro atacante como passe com o valor do Bloqueio. Bloqueio &lt; poder: <b>amortece</b> — o ataque perde o valor do Bloqueio e deixa de ser Corte (você ainda defende o resto).</li>
+      <li><b>🏐 Saque</b> — inicia o rally junto de 1 carta; o ataque dela define o poder. Poder ≥ 4 = saque-corte (só Manchete defende).</li>
     </ul>
-    <h4>O rally</h4>
+    <h4>Os 3 toques</h4>
     <ul>
-      <li>Defesa: a carta precisa ter Defesa ≥ poder do ataque (e ser do tipo permitido). Sem defesa válida = ponto do adversário.</li>
-      <li><b>Bola livre (poder 0)</b> pode ser recebida por <b>qualquer carta</b> — inclusive Corte, mas aí você só consegue devolver outra bola livre.</li>
-      <li>Construção: Manchete → Levantamento → Corte (pode parar antes e passar). Poder = soma dos ataques (Manchete não soma, exceto no saque).</li>
-      <li>Refill: ao fim da sua jogada, complete a mão para 3 (mercado aberto ou deck).</li>
+      <li>Sua jogada tem no máximo <b>3 cartas</b>, como os 3 toques do vôlei: 1º = defesa, 2º e 3º = construção.</li>
+      <li><b>A defesa nunca soma ataque.</b> O poder do passe é o Ataque da última carta de construção (Levantamento); Manchete na construção não soma (bola livre se for a última).</li>
+      <li>Combo completo (defesa → Lev → Corte) soma Lev + Corte. Ex.: defesa → Lev 3 → Corte 6 = poder 9.</li>
+      <li><b>Corte de transição:</b> defendeu com Levantamento? Pode cortar direto — mas só o Corte conta (a defesa não soma). Ex.: Lev (defesa) → Corte 6 = poder 6.</li>
+      <li><b>Bola livre (poder 0)</b>: qualquer carta recebe — mas com Corte ou Bloqueio, só devolve outra bola livre.</li>
+      <li>Refill: ao fim da sua jogada, complete a mão para 3 (mercado ou deck).</li>
     </ul>
-    <h4>Regras de equilíbrio</h4>
+    <h4>Equilíbrio</h4>
     <ul>
-      <li><b>O recebedor do saque compra 1 carta extra</b> (mão vai a 4) antes de defender.</li>
-      <li><b>Quem sofre o ponto descarta a mão inteira e compra 3 cartas novas</b> — o time se reorganiza.</li>
-      <li>Partida até <b>3 pontos</b>. Quem ganha o ponto saca o próximo rally.</li>
+      <li>O recebedor do saque compra 1 carta extra (mão vai a 4).</li>
+      <li>Quem sofre o ponto descarta a mão e compra 3 novas.</li>
+      <li>Partida até 3 pontos. Quem ganha o ponto saca o próximo rally.</li>
     </ul>
     <h4>Modo online</h4>
     <ul>
-      <li>Quem cria a sala é o Jogador 1 e saca o primeiro rally. Cada jogador só vê a própria mão.</li>
+      <li>Quem cria a sala é o Jogador 1 e saca primeiro. Cada jogador só vê a própria mão.</li>
     </ul>`
 },
 en: {
-  cards:{manchete:'Bump', levantamento:'Set', corte:'Spike', saque:'Serve'},
-  def:'DEF', atk:'ATK', attackStat:'ATTACK', special:'special',
-  cardLabelFull:'{name} (Def {def} / Atk {atk})', cardLabelCorte:'Spike (Atk {atk})',
+  cards:{manchete:'Bump', levantamento:'Set', corte:'Spike', saque:'Serve', bloqueio:'Block'},
+  def:'DEF', atk:'ATK', attackStat:'ATTACK', special:'special', blk:'BLK', srvStat:'🏐SRV',
+  cardLabelFull:'{name} (Def {def} / Atk {atk})', cardLabelCorte:'Spike (Atk {atk})', cardLabelBloq:'Block (Blk {blk})',
   btnRules:'Rules', btnNew:'New match', btnAgain:'Play again', btnCloseRules:'Close',
   marketTitle:'Market & Deck', logTitle:'Commentary',
   autoRefill:'Fill from deck', refillHintTxt:'Refill: take cards from the market or the deck until you hold {n}.',
@@ -373,7 +381,7 @@ en: {
   handPlayer:'Hand — Player {n}', handMine:'Your hand — Player {n}', handOpp:'Player {n} (opponent)',
   scorePlayer:'Player {n}', scoreYou:'You (P{n})', scoreOpp:'Opponent (P{n})',
   badgeLocal:'LOCAL MODE', badgeHost:'ROOM {code} • YOU ARE P1', badgeGuest:'ONLINE • YOU ARE P2',
-  lobbySub:'The volleyball card game — prototype v0.5',
+  lobbySub:'The volleyball card game — prototype v0.6',
   btnLocal:'🎮 Play local (2 on this device)', btnCreate:'🌐 Create online room', btnJoin:'🔗 Join a room',
   yourRoom:'Your room', copyLink:'📋 Copy invite link', copied:'✅ Link copied!',
   creating:'Creating room...', connectingServer:'Connecting to room server...', waiting:'Room ready! Waiting for opponent...',
@@ -394,18 +402,19 @@ en: {
   stNoDefCorte:' (Spike)', btnSuffer:'Concede the point',
   stBuild:'⚔️ <b>{J}</b>: {hint} Accumulated attack: <b>{atk}</b>.',
   hintDig:'Desperation dig — all you can do is return the free ball.',
-  hintAfterBump:'Play a Set to set up the Spike, or return a free ball.',
-  hintAfterSet:'Play a Spike to attack hard, or return the ball.',
-  hintLevOnly:'Defending with a Set cannot set up a Spike — just return the ball.',
+  hintAfterBump:'Play a Set to set up the Spike, save with another card, or return a free ball.',
+  hintAfterSet:'Play a Spike to attack hard, save with another card, or return the ball.',
+  hintOpen:'You may play up to 3 cards per play (Bumps/Sets save the ball) or return it.',
+  hint3:'3 touches used — just return the ball.',
   btnPass:'Return the ball (attack {n})',
   stRefill:'🃏 <b>{J}</b>: refill your hand to {n} cards — click market cards, the deck, or use "{auto}".',
   errCorteNoDef:'A Spike can only receive free balls (power 0) — it cannot defend attacks!',
   errCorteOnlyM:'A Spike can only be defended by a Bump!',
   errDefLow:'Defense {def} cannot match the attack power {power}.',
   errDig:'Desperation dig — you cannot build anything, just return the ball.',
-  errCorteOrder:'A Spike can only follow a Set (that followed a Bump).',
-  errSetOrder:'A Set only joins the sequence after a Bump.',
-  errBumpOrder:'A Bump can only start the play (defense), not continue the sequence.',
+  errCorteOrder:'The Spike must come right after a Set.',
+  errMaxTouches:'Maximum of 3 touches per play — return the ball.',
+  errBlock:'The Block only works against Spikes — and never against serves!',
   lg:{
     newGame:'🏐 New match! Player 1 holds the Serve card. First to 3 points wins.',
     reshuffle:'♻️ Discard pile reshuffled into the deck.',
@@ -416,6 +425,9 @@ en: {
     defend:'P{p} defends the power {power} attack with {card} ✅',
     set:'P{p} sets with {card}.',
     spike:'P{p} SPIKES with {card}! 💥',
+    save:'P{p} saves the ball with {card}.',
+    blockKill:'✋ P{p} ROOFS the power {power} spike! The ball bounces back as a power {blk} pass.',
+    blockSoft:'✋ P{p} touch-blocks (−{blk}): the ball drops soft at power {power} and is no longer a Spike.',
     ret:'P{p} returns the ball — attack power <b>{power}</b>{c}.',
     retCorte:' (Spike!)', retFree:' (free ball)',
     buyMarket:'P{p} takes {card} from the market.',
@@ -427,30 +439,33 @@ en: {
     topup:'P{p} refills to 3 cards before the new rally.'
   },
   rulesHtml:`
-    <h2>Rules (v0.5)</h2>
-    <h4>Cards — 30-card deck</h4>
+    <h2>Rules (v0.6)</h2>
+    <h4>Cards — 33-card deck + Serve</h4>
     <ul>
-      <li><b>🙌 Bump (×12)</b> — defends against any play. Its attack only counts with the Serve. Can return the ball alone (free ball, attack 0).</li>
-      <li><b>👐 Set (×9)</b> — defends anything except Spikes. Only sets up a Spike if it comes after a Bump in the same play.</li>
-      <li><b>💥 Spike (×9)</b> — can only be played after a Set (that followed a Bump). Can only be defended by a Bump.</li>
-      <li><b>🏐 Serve</b> — starts the rally, played with 1 card from your hand; that card's attack sets the serve power. Power ≥ 4 = spike serve (Bump only).</li>
+      <li><b>🙌 Bump (×12)</b> — defends against any play. Its attack number is <b>SRV</b>: it only counts when paired with the Serve.</li>
+      <li><b>👐 Set (×9)</b> — defends anything except Spikes. In the build, it sets the pass power and enables the Spike.</li>
+      <li><b>💥 Spike (×9)</b> — ends the play and must come right after a Set (any Set, even the defensive one). Only falls to a Bump (or a Block).</li>
+      <li><b>✋ Block (×3)</b> — only works against Spikes, <b>never against serves</b>. Block ≥ power: <b>roof</b> — the ball bounces back to the attacker as a pass worth the Block's value. Block &lt; power: <b>touch-block</b> — the attack loses the Block's value and is no longer a Spike (you still defend the rest).</li>
+      <li><b>🏐 Serve</b> — starts the rally with 1 card; that card's attack sets the power. Power ≥ 4 = spike serve (Bump only).</li>
     </ul>
-    <h4>The rally</h4>
+    <h4>The 3 touches</h4>
     <ul>
-      <li>Defense: the card needs Defense ≥ the incoming attack power (and must be an allowed type). No valid defense = opponent scores.</li>
-      <li><b>Free balls (power 0)</b> can be received by <b>any card</b> — even a Spike, but then you can only return another free ball.</li>
-      <li>Building: Bump → Set → Spike (you may stop early and return). Power = sum of attacks (the Bump doesn't count, except on the Serve).</li>
-      <li>Refill: at the end of your play, refill your hand to 3 (open market or deck).</li>
+      <li>Your play has at most <b>3 cards</b>, like volleyball's 3 touches: 1st = defense, 2nd and 3rd = build.</li>
+      <li><b>The defense never adds attack.</b> Pass power = the Attack of the last build card (a Set); a Bump in the build adds nothing (free ball if it's last).</li>
+      <li>Full combo (defense → Set → Spike) adds both. E.g.: defense → Set 3 → Spike 6 = power 9.</li>
+      <li><b>Transition spike:</b> defended with a Set? You may spike right away — but only the Spike counts (the defense adds nothing). E.g.: Set (defense) → Spike 6 = power 6.</li>
+      <li><b>Free balls (power 0)</b>: any card receives — but with a Spike or Block, you can only return another free ball.</li>
+      <li>Refill: at the end of your play, refill your hand to 3 (market or deck).</li>
     </ul>
-    <h4>Balance rules</h4>
+    <h4>Balance</h4>
     <ul>
-      <li><b>The serve receiver draws 1 extra card</b> (hand of 4) before defending.</li>
-      <li><b>Whoever concedes a point discards their whole hand and draws 3 fresh cards</b> — the team regroups.</li>
-      <li>First to <b>3 points</b>. The point winner serves the next rally.</li>
+      <li>The serve receiver draws 1 extra card (hand of 4).</li>
+      <li>Whoever concedes a point discards their hand and draws 3 fresh cards.</li>
+      <li>First to 3 points. The point winner serves the next rally.</li>
     </ul>
     <h4>Online mode</h4>
     <ul>
-      <li>The room creator is Player 1 and serves the first rally. Each player only sees their own hand.</li>
+      <li>The room creator is Player 1 and serves first. Each player only sees their own hand.</li>
     </ul>`
 }
 };
@@ -485,6 +500,7 @@ function buildDeck(){
   [[2,2],[2,3],[2,4],[3,2],[3,3],[3,4],[4,2],[4,3],[4,4]]
    .forEach(([def,atk])=>d.push({t:'levantamento',def,atk}));
   [3,3,4,4,5,5,5,6,6].forEach(atk=>d.push({t:'corte',def:null,atk}));
+  [5,6,7].forEach(blk=>d.push({t:'bloqueio',def:null,atk:0,blk}));
   d.forEach((c,i)=>c.id=i);
   return d;
 }
@@ -503,6 +519,7 @@ function drawCard(){
 /* ---------------- Log estruturado ---------------- */
 function cardLabel(c){
   const name = T[lang].cards[c.t];
+  if(c.t==='bloqueio') return t('cardLabelBloq', {blk:c.blk});
   if(c.t==='corte') return t('cardLabelCorte', {atk:c.atk});
   return t('cardLabelFull', {name, def:c.def, atk:c.atk});
 }
@@ -537,7 +554,7 @@ function newGame(){
     deck: shuffle(buildDeck()), discard: [], market: [],
     hands: [[],[]], score: [0,0],
     server: 0, turn: 0, phase: 'serve',
-    incoming: null, seq: [], seqAtk: 0, seqHasManchete: false,
+    incoming: null, seq: [], seqAtk: 0, seqHasManchete: false, touches: 0, dug: false,
     afterRefill: null, refillTarget: 3, winner: null, lastPlay: [null,null]
   };
   for(let i=0;i<3;i++) S.market.push(drawCard());
@@ -552,11 +569,29 @@ function newGame(){
 function isValidDefense(c, inc){
   if(!c || c.hidden) return false;
   if(inc.power===0) return true;
-  if(c.t==='corte') return false;
+  if(c.t==='corte' || c.t==='bloqueio') return false;
   if(inc.type==='corte' && c.t!=='manchete') return false;
   return c.def >= inc.power;
 }
 
+function canBlockCard(c, inc){
+  return c && c.t==='bloqueio' && inc && inc.power>0 && inc.type==='corte' && !inc.serve;
+}
+function hasAnyAnswer(hand, inc){
+  if(!inc) return true;
+  if(hand.some(c=>isValidDefense(c,inc))) return true;
+  return hand.some(c=>{
+    if(!canBlockCard(c,inc)) return false;
+    if(c.blk>=inc.power) return true;
+    const rem = inc.power - c.blk;
+    return hand.some(o=>o!==c && o.t!=='corte' && o.t!=='bloqueio' && !o.hidden && o.def>=rem);
+  });
+}
+function defPos(){ return (S.seq.length && S.seq[0].t==='bloqueio') ? 1 : 0; }
+function canCorte(){
+  if(!S || S.dug || S.touches>=3 || !S.seq.length) return false;
+  return S.seq[S.seq.length-1].t==='levantamento';
+}
 function engineHand(p, idx){
   if(!S || S.winner!==null || p!==S.turn) return;
   const hand = S.hands[p];
@@ -569,24 +604,44 @@ function engineHand(p, idx){
     const type = power>=CORTE_THRESHOLD ? 'corte' : 'pass';
     S.lastPlay[p] = [{t:'saque'}, c];
     S.discard.push(c);
-    S.incoming = {power, type, from:p};
+    S.incoming = {power, type, from:p, serve:true};
     log('serve', {p:p+1, card:c, power, corte:type==='corte'});
     const receiver = 1-p;
     startRefill(p, 3, ()=>{
       log('receiver', {p:receiver+1});
-      startRefill(receiver, 4, ()=>{ S.turn = receiver; S.phase='defend'; });
+      startRefill(receiver, 4, ()=>{ S.turn = receiver; S.phase='defend'; S.touches=0; S.dug=false; });
     });
     render(); return;
   }
 
   if(S.phase==='defend'){
+    if(c.t==='bloqueio' && S.incoming.power>0){
+      if(!canBlockCard(c, S.incoming)) return;
+      hand.splice(idx,1);
+      S.discard.push(c);
+      if(c.blk >= S.incoming.power){
+        // bloqueio seco: a bola volta para o atacante
+        S.lastPlay[p] = [c];
+        log('blockKill', {p:p+1, blk:c.blk, power:S.incoming.power});
+        S.incoming = {power:c.blk, type:'pass', from:p};
+        S.seq=[]; S.seqAtk=0; S.touches=0; S.dug=false;
+        startRefill(p, 3, ()=>{ S.turn = 1-p; S.phase='defend'; S.touches=0; S.dug=false; });
+        render(); return;
+      }
+      // amortece: perde poder e deixa de ser Corte; ainda é preciso defender o resto
+      S.seq=[c]; S.touches=1; S.lastPlay[p]=[c];
+      S.incoming = {power: S.incoming.power - c.blk, type:'pass', from:S.incoming.from};
+      log('blockSoft', {p:p+1, blk:c.blk, power:S.incoming.power});
+      render(); return;
+    }
     if(!isValidDefense(c, S.incoming)) return;
     hand.splice(idx,1);
-    S.seq=[c];
-    S.seqHasManchete = (c.t==='manchete');
-    S.seqAtk = (c.t==='levantamento') ? c.atk : 0;
+    if(S.seq.length && S.seq[0].t==='bloqueio') S.seq.push(c); else S.seq=[c];
+    S.touches = (S.touches||0)+1;
+    S.dug = (c.t==='corte' || c.t==='bloqueio');
+    S.seqAtk = 0; // a defesa nunca soma ataque
     S.lastPlay[p] = [...S.seq];
-    if(c.t==='corte') log('dig', {p:p+1, card:c});
+    if(S.dug) log('dig', {p:p+1, card:c});
     else log('defend', {p:p+1, power:S.incoming.power, card:c});
     S.incoming = null;
     S.phase='build';
@@ -594,15 +649,18 @@ function engineHand(p, idx){
   }
 
   if(S.phase==='build'){
-    const last = S.seq[S.seq.length-1];
-    if(c.t==='levantamento' && last.t==='manchete'){
-      hand.splice(idx,1); S.seq.push(c); S.seqAtk += c.atk;
+    if(S.dug || S.touches>=3) return;
+    if(c.t==='manchete' || c.t==='levantamento'){
+      hand.splice(idx,1); S.seq.push(c); S.touches++;
+      S.seqAtk = (c.t==='levantamento') ? c.atk : 0; // vale a última carta de construção
       S.lastPlay[p] = [...S.seq];
-      log('set', {p:p+1, card:c});
+      log(c.t==='levantamento' ? 'set' : 'save', {p:p+1, card:c});
       render(); return;
     }
-    if(c.t==='corte' && last.t==='levantamento' && S.seqHasManchete){
-      hand.splice(idx,1); S.seq.push(c); S.seqAtk += c.atk;
+    if(c.t==='corte' && canCorte()){
+      hand.splice(idx,1);
+      S.seqAtk = S.seqAtk + c.atk; // lev de construção soma; lev de defesa não (corte de transição)
+      S.seq.push(c); S.touches++;
       S.lastPlay[p] = [...S.seq];
       log('spike', {p:p+1, card:c});
       enginePass();
@@ -615,20 +673,19 @@ function enginePass(){
   if(!S || S.phase!=='build') return;
   const p = S.turn;
   const last = S.seq[S.seq.length-1];
-  const type = (last.t==='corte' && S.seqHasManchete) ? 'corte' : 'pass';
-  const power = S.seqAtk;
+  const type = (!S.dug && last && last.t==='corte') ? 'corte' : 'pass';
+  const power = S.dug ? 0 : S.seqAtk;
   S.seq.forEach(c=>S.discard.push(c));
-  S.seq=[]; S.seqAtk=0; S.seqHasManchete=false;
+  S.seq=[]; S.seqAtk=0; S.touches=0; S.dug=false;
   S.incoming = {power, type, from:p};
   log('ret', {p:p+1, power, corte:type==='corte'});
-  startRefill(p, 3, ()=>{ S.turn = 1-p; S.phase='defend'; });
+  startRefill(p, 3, ()=>{ S.turn = 1-p; S.phase='defend'; S.touches=0; S.dug=false; });
   render();
 }
 
 function engineSuffer(p){
   if(!S || S.phase!=='defend' || p!==S.turn) return;
-  const hasDef = S.hands[p].some(c=>isValidDefense(c, S.incoming));
-  if(hasDef) return;
+  if(hasAnyAnswer(S.hands[p], S.incoming)) return;
   awardPoint(1-p, S.incoming.power);
 }
 
@@ -679,7 +736,7 @@ function awardPoint(winner, power){
   S.score[winner]++;
   const loser = 1-winner;
   log('point', {w:winner+1, l:loser+1, power, s0:S.score[0], s1:S.score[1]}, true);
-  S.incoming=null; S.seq=[]; S.seqAtk=0; S.seqHasManchete=false;
+  S.incoming=null; S.seq=[]; S.seqAtk=0; S.seqHasManchete=false; S.touches=0; S.dug=false;
   S.lastPlay=[null,null];
   if(S.score[winner]>=POINTS_TO_WIN){
     S.winner=winner;
@@ -789,7 +846,7 @@ function buildView(){
     score:S.score, server:S.server, turn:S.turn, phase:S.phase,
     incoming:S.incoming, winner:S.winner, deckCount:S.deck.length,
     market:S.market, lastPlay:S.lastPlay, seq:S.seq, seqAtk:S.seqAtk,
-    seqHasManchete:S.seqHasManchete, refillTarget:S.refillTarget,
+    seqHasManchete:S.seqHasManchete, touches:S.touches, dug:S.dug, refillTarget:S.refillTarget,
     oppCount:S.hands[0].length, myHand:S.hands[1]
   };
 }
@@ -799,7 +856,7 @@ function applyView(v){
     market:v.market, hands:[Array.from({length:v.oppCount},()=>({hidden:true})), v.myHand],
     score:v.score, server:v.server, turn:v.turn, phase:v.phase,
     incoming:v.incoming, winner:v.winner,
-    seq:v.seq, seqAtk:v.seqAtk, seqHasManchete:v.seqHasManchete,
+    seq:v.seq, seqAtk:v.seqAtk, seqHasManchete:v.seqHasManchete, touches:v.touches, dug:v.dug,
     afterRefill:null, refillTarget:v.refillTarget, lastPlay:v.lastPlay
   };
 }
@@ -816,24 +873,24 @@ function uiHand(p, idx){
   if(!S || S.winner!==null) return;
   if(!isMine(p) || p!==S.turn){ flash(p, idx); return; }
   const c = S.hands[p][idx];
-  if(S.phase==='defend' && !isValidDefense(c, S.incoming)){
+  if(S.phase==='defend' && !(isValidDefense(c, S.incoming) || canBlockCard(c, S.incoming))){
     flash(p, idx);
     let msg;
-    if(c.t==='corte') msg=t('errCorteNoDef');
+    if(c.t==='bloqueio') msg=t('errBlock');
+    else if(c.t==='corte') msg=t('errCorteNoDef');
     else if(S.incoming.type==='corte' && c.t!=='manchete') msg=t('errCorteOnlyM');
     else msg=t('errDefLow', {def:c.def, power:S.incoming.power});
     setStatusHint(msg); return;
   }
   if(S.phase==='build'){
-    const last = S.seq[S.seq.length-1];
-    const ok = (c.t==='levantamento' && last.t==='manchete') ||
-               (c.t==='corte' && last.t==='levantamento' && S.seqHasManchete);
+    const ok = !S.dug && S.touches<3 &&
+               ((c.t==='manchete'||c.t==='levantamento') || (c.t==='corte' && canCorte()));
     if(!ok){
       flash(p, idx);
-      if(S.seq[0].t==='corte') setStatusHint(t('errDig'));
+      if(S.dug) setStatusHint(t('errDig'));
+      else if(S.touches>=3) setStatusHint(t('errMaxTouches'));
       else if(c.t==='corte') setStatusHint(t('errCorteOrder'));
-      else if(c.t==='levantamento') setStatusHint(t('errSetOrder'));
-      else setStatusHint(t('errBumpOrder'));
+      else setStatusHint(t('errBlock'));
       return;
     }
   }
@@ -957,11 +1014,11 @@ function playableInfo(p,c){
   if(!S || S.winner!==null || S.turn!==p || c.hidden) return false;
   if(mode!=='local' && p!==myPlayer) return false;
   if(S.phase==='serve') return true;
-  if(S.phase==='defend') return isValidDefense(c, S.incoming);
+  if(S.phase==='defend') return isValidDefense(c, S.incoming) || canBlockCard(c, S.incoming);
   if(S.phase==='build'){
-    const last = S.seq[S.seq.length-1];
-    if(c.t==='levantamento' && last.t==='manchete') return true;
-    if(c.t==='corte' && last.t==='levantamento' && S.seqHasManchete) return true;
+    if(S.dug || S.touches>=3) return false;
+    if(c.t==='manchete' || c.t==='levantamento') return true;
+    if(c.t==='corte') return canCorte();
     return false;
   }
   return false;
@@ -974,9 +1031,11 @@ function renderCard(c, playable, onClick, id, mini){
   const L = T[lang];
   const stats = c.t==='saque'
     ? `<div class="stat"><span>${L.special}</span></div>`
+    : c.t==='bloqueio'
+    ? `<div class="stat def"><b>${c.blk}</b><span>${L.blk}</span></div>`
     : (c.t==='corte'
       ? `<div class="stat atk"><b>${c.atk}</b><span>${L.attackStat}</span></div>`
-      : `<div class="stat def"><b>${c.def}</b><span>${L.def}</span></div><div class="stat atk"><b>${c.atk}</b><span>${L.atk}</span></div>`);
+      : `<div class="stat def"><b>${c.def}</b><span>${L.def}</span></div><div class="stat atk"><b>${c.atk}</b><span>${c.t==='manchete' ? L.srvStat : L.atk}</span></div>`);
   el.innerHTML = `<div class="top">${L.cards[c.t]}</div><div class="icon">${ICONS[c.t]}</div><div class="stats">${stats}</div>`;
   if(onClick) el.addEventListener('click', onClick);
   return el;
@@ -1018,7 +1077,7 @@ function renderStatus(){
   }
   else if(S.phase==='defend'){
     const inc=S.incoming;
-    const hasDef = S.hands[S.turn].some(c=>isValidDefense(c,inc));
+    const hasDef = hasAnyAnswer(S.hands[S.turn], inc);
     if(hasDef){
       if(inc.power===0){
         msgEl.innerHTML=t('stFree', {J});
@@ -1038,10 +1097,10 @@ function renderStatus(){
   else if(S.phase==='build'){
     const last=S.seq[S.seq.length-1];
     let hint;
-    if(S.seq[0].t==='corte') hint=t('hintDig');
-    else if(last.t==='manchete') hint=t('hintAfterBump');
-    else if(last.t==='levantamento' && S.seqHasManchete) hint=t('hintAfterSet');
-    else hint=t('hintLevOnly');
+    if(S.dug) hint=t('hintDig');
+    else if(S.touches>=3) hint=t('hint3');
+    else if(canCorte()) hint=t('hintAfterSet');
+    else hint=t('hintOpen');
     msgEl.innerHTML=t('stBuild', {J, hint, atk:S.seqAtk});
     const b=document.createElement('button');
     b.className='primary';
