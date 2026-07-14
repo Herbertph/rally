@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rally! — O Card Game de Vôlei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+<style>
+  :root{
+    --navy:#0d2440; --navy2:#123056; --court:#c95f28; --court-dark:#a94c1c;
+    --line:#f5efe4; --card-bg:#faf6ec; --ink:#22201b;
+    --blue:#2e6fd8; --amber:#e09312; --red:#d8452e; --gold:#e8c04a;
+    --green:#3f9b5f; --muted:#9db2c9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--navy);color:var(--line);font-family:'Inter',system-ui,sans-serif;min-height:100vh}
+  header{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;
+    border-bottom:2px solid var(--navy2);flex-wrap:wrap;gap:8px}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:2px;line-height:1}
+  .logo span{color:var(--court)}
+  .logo small{font-family:Inter;font-size:11px;color:var(--muted);letter-spacing:0}
+  #connBadge{font-size:10px;font-weight:700;background:var(--navy2);color:var(--gold);
+    padding:3px 10px;border-radius:20px;letter-spacing:.5px;display:none}
+  .score{display:flex;align-items:center;gap:14px;font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:1px}
+  .score .pt{background:var(--navy2);padding:0 14px;border-radius:8px;min-width:52px;text-align:center}
+  .score .pt.serving{box-shadow:inset 0 0 0 2px var(--gold)}
+  .score small{font-size:13px;font-family:'Inter';color:var(--muted);display:block;letter-spacing:0;font-weight:600}
+  .hdr-btns{display:flex;gap:8px}
+  button{font-family:'Inter';font-weight:700;font-size:13px;border:none;border-radius:8px;
+    padding:9px 14px;cursor:pointer;background:var(--navy2);color:var(--line);
+    transition:transform .1s, background .15s}
+  button:hover{transform:translateY(-1px);background:#1a4173}
+  button.primary{background:var(--court);color:#fff}
+  button.primary:hover{background:#e06f33}
+  button.danger{background:var(--red);color:#fff}
+  button:disabled{opacity:.5;cursor:default;transform:none}
+  button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+  main{max-width:1100px;margin:0 auto;padding:14px;display:grid;grid-template-columns:1fr 250px;gap:14px}
+  @media(max-width:820px){main{grid-template-columns:1fr}}
+
+  .board{display:flex;flex-direction:column;gap:10px}
+  .board #zone2{order:0}.board .court{order:1}.board #statusBar{order:2}.board #zone1{order:3}
+  .board.flip #zone1{order:0}.board.flip #zone2{order:3}
+  .board.flip .court{flex-direction:column-reverse}
+
+  .hand-zone{background:var(--navy2);border-radius:14px;padding:10px 12px;
+    border:2px solid transparent;transition:border-color .2s}
+  .hand-zone.active{border-color:var(--gold)}
+  .hand-zone h3{font-family:'Bebas Neue';font-size:18px;letter-spacing:1.5px;font-weight:400;
+    display:flex;align-items:center;gap:8px;margin-bottom:8px;color:var(--muted)}
+  .hand-zone.active h3{color:var(--gold)}
+  .badge-turn{font-family:'Inter';font-size:10px;font-weight:700;background:var(--gold);color:var(--ink);
+    padding:2px 8px;border-radius:20px;letter-spacing:.5px}
+  .cards{display:flex;gap:10px;flex-wrap:wrap;min-height:112px}
+
+  .card{width:86px;height:118px;border-radius:10px;background:var(--card-bg);color:var(--ink);
+    display:flex;flex-direction:column;position:relative;overflow:hidden;
+    border:2px solid rgba(0,0,0,.15);box-shadow:0 3px 6px rgba(0,0,0,.35);
+    cursor:default;user-select:none;transition:transform .12s, box-shadow .12s, opacity .15s;font-size:11px}
+  .card .top{font-family:'Bebas Neue';font-size:15px;letter-spacing:.5px;color:#fff;padding:4px 6px;text-align:center}
+  .card.manchete .top{background:var(--blue)}
+  .card.levantamento .top{background:var(--amber)}
+  .card.corte .top{background:var(--red)}
+  .card.saque .top{background:var(--green)}
+  .card .icon{flex:1;display:flex;align-items:center;justify-content:center;font-size:30px}
+  .card .stats{display:flex;border-top:1px dashed rgba(0,0,0,.2)}
+  .card .stat{flex:1;text-align:center;padding:4px 2px;font-weight:700}
+  .card .stat b{display:block;font-size:16px;line-height:1}
+  .card .stat span{font-size:9px;color:#6b6455;font-weight:600;letter-spacing:.4px}
+  .card .stat.def b{color:var(--blue)}
+  .card .stat.atk b{color:var(--red)}
+  .card.playable{cursor:pointer;box-shadow:0 0 0 2px var(--gold), 0 5px 12px rgba(0,0,0,.4)}
+  .card.playable:hover{transform:translateY(-6px)}
+  .card.dim{opacity:.45;filter:grayscale(.4)}
+  .card.back{background:repeating-linear-gradient(45deg,#1a4173 0 8px,#123056 8px 16px);
+    border-color:var(--muted);display:flex;align-items:center;justify-content:center}
+  .card.back::after{content:'🏐';font-size:26px;opacity:.7}
+  .card.mini{width:64px;height:88px;font-size:9px}
+  .card.mini .top{font-size:12px;padding:3px 4px}
+  .card.mini .icon{font-size:22px}
+  .card.mini .stat b{font-size:13px}
+  .card.shake{animation:shake .3s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+  .court{background:linear-gradient(var(--court),var(--court-dark));border-radius:14px;
+    border:3px solid var(--line);padding:12px;position:relative;min-height:200px;
+    display:flex;flex-direction:column}
+  .half{flex:1;min-height:78px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 2px}
+  .net{height:14px;border-radius:4px;margin:4px 0;
+    background:repeating-linear-gradient(90deg,#fff 0 6px,transparent 6px 12px),
+               repeating-linear-gradient(0deg,#fff 0 3px,transparent 3px 7px);
+    background-color:rgba(255,255,255,.15);border-top:2px solid #fff;border-bottom:2px solid #fff;position:relative}
+  .ball{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    background:var(--line);color:var(--ink);border-radius:30px;padding:5px 16px;
+    font-weight:700;font-size:13px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.4);z-index:2}
+  .ball .pw{font-family:'Bebas Neue';font-size:19px;color:var(--red);margin-left:4px}
+  .half-label{position:absolute;right:10px;font-family:'Bebas Neue';font-size:14px;
+    letter-spacing:2px;color:rgba(255,255,255,.55)}
+  .status-bar{background:rgba(13,36,64,.85);border-radius:10px;padding:10px 14px;
+    font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:52px}
+  .status-bar .msg{flex:1;min-width:200px}
+  .status-bar.alert{box-shadow:inset 0 0 0 2px var(--red)}
+
+  aside{display:flex;flex-direction:column;gap:14px}
+  .panel{background:var(--navy2);border-radius:14px;padding:12px}
+  .panel h3{font-family:'Bebas Neue';font-size:17px;letter-spacing:1.5px;font-weight:400;color:var(--muted);margin-bottom:8px}
+  .panel.hot{box-shadow:0 0 0 2px var(--gold)}
+  .market-cards{display:flex;gap:8px;flex-wrap:wrap}
+  .deck-pile{width:64px;height:88px;border-radius:10px;cursor:default;
+    background:repeating-linear-gradient(45deg,#1a4173 0 8px,#123056 8px 16px);
+    border:2px solid var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-family:'Bebas Neue';font-size:13px;letter-spacing:1px;color:var(--line);transition:transform .12s}
+  .deck-pile b{font-size:22px}
+  .deck-pile.playable{cursor:pointer;border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+  .deck-pile.playable:hover{transform:translateY(-4px)}
+  .deck-row{display:flex;gap:10px;align-items:center}
+  #log{max-height:230px;overflow-y:auto;font-size:12px;line-height:1.5;
+    display:flex;flex-direction:column-reverse;gap:4px}
+  #log div{padding:5px 8px;background:rgba(13,36,64,.6);border-radius:6px;border-left:3px solid var(--court)}
+  #log div.pt-log{border-left-color:var(--gold);font-weight:700}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:10;padding:16px}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--navy2);border-radius:14px;max-width:640px;max-height:85vh;overflow-y:auto;padding:22px}
+  .modal h2{font-family:'Bebas Neue';font-size:26px;letter-spacing:1.5px;font-weight:400;margin-bottom:12px}
+  .modal h4{margin:14px 0 4px;color:var(--gold);font-size:14px}
+  .modal p,.modal li{font-size:13px;line-height:1.55;color:#d7e2ef}
+  .modal ul{padding-left:18px}
+  .modal .close{margin-top:16px}
+
+  .overlay{position:fixed;inset:0;background:rgba(13,36,64,.96);display:none;
+    align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:20;text-align:center;padding:20px}
+  .overlay.open{display:flex}
+  .overlay h1{font-family:'Bebas Neue';font-size:64px;letter-spacing:3px;color:var(--gold)}
+  .overlay h1 span{color:var(--court)}
+
+  /* ---- lobby ---- */
+  #lobby .box{background:var(--navy2);border-radius:16px;padding:26px;max-width:420px;width:100%;
+    display:flex;flex-direction:column;gap:12px}
+  #lobby .box h2{font-family:'Bebas Neue';font-size:20px;letter-spacing:1.5px;font-weight:400;color:var(--muted)}
+  #lobby button{font-size:15px;padding:13px}
+  #lobby input{font-family:'Bebas Neue';font-size:24px;letter-spacing:6px;text-align:center;text-transform:uppercase;
+    padding:10px;border-radius:8px;border:2px solid var(--muted);background:var(--navy);color:var(--line);width:100%}
+  #lobby input:focus{outline:none;border-color:var(--gold)}
+  .roomcode{font-family:'Bebas Neue';font-size:52px;letter-spacing:10px;color:var(--gold)}
+  .lobbyStatus{font-size:13px;color:var(--muted);min-height:20px}
+  .pulse{animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  @media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">RALLY<span>!</span> <small>v0.4</small> <span id="connBadge"></span></div>
+  <div class="score">
+    <div class="pt" id="scoreWrap1"><small id="scoreName1">Jogador 1</small><span id="score1">0</span></div>
+    <div style="font-size:20px;color:var(--muted)">×</div>
+    <div class="pt" id="scoreWrap2"><small id="scoreName2">Jogador 2</small><span id="score2">0</span></div>
+  </div>
+  <div class="hdr-btns">
+    <button onclick="openRules()">Regras</button>
+    <button class="primary" onclick="uiNewGame()">Nova partida</button>
+  </div>
+</header>
+
+<main>
+  <section class="board" id="board">
+    <div class="hand-zone" id="zone2">
+      <h3><span id="handTitle2">Mão — Jogador 2</span> <span class="badge-turn" id="turnBadge2" style="display:none">SUA VEZ</span></h3>
+      <div class="cards" id="hand2"></div>
+    </div>
+
+    <div class="court">
+      <div class="half" id="table2"><span class="half-label" style="top:8px">LADO J2</span></div>
+      <div class="net"><div class="ball" id="ball" style="display:none"></div></div>
+      <div class="half" id="table1"><span class="half-label" style="bottom:8px">LADO J1</span></div>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+      <div class="msg" id="statusMsg"></div>
+      <div id="actionBtns" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    </div>
+
+    <div class="hand-zone" id="zone1">
+      <h3><span id="handTitle1">Mão — Jogador 1</span> <span class="badge-turn" id="turnBadge1" style="display:none">SUA VEZ</span></h3>
+      <div class="cards" id="hand1"></div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel" id="marketPanel">
+      <h3>Mercado &amp; Deck</h3>
+      <div class="deck-row">
+        <div class="deck-pile" id="deckPile" onclick="uiDeck()"><span>DECK</span><b id="deckCount">0</b></div>
+        <div class="market-cards" id="market"></div>
+      </div>
+      <div id="refillHint" style="font-size:11px;color:var(--gold);margin-top:8px;display:none"></div>
+      <button id="autoRefillBtn" style="display:none;margin-top:8px" class="primary" onclick="uiAuto()">Completar do deck</button>
+    </div>
+    <div class="panel">
+      <h3>Narração</h3>
+      <div id="log"></div>
+    </div>
+  </aside>
+</main>
+
+<!-- Lobby -->
+<div class="overlay open" id="lobby">
+  <h1>RALLY<span>!</span></h1>
+  <div style="font-size:14px;color:var(--muted);margin-top:-10px">O card game de vôlei — protótipo v0.4</div>
+  <div class="box" id="lobbyHome">
+    <button class="primary" onclick="startLocal()">🎮 Jogar local (2 no mesmo aparelho)</button>
+    <button onclick="showCreate()">🌐 Criar sala online</button>
+    <button onclick="showJoin()">🔗 Entrar em uma sala</button>
+  </div>
+  <div class="box" id="lobbyCreate" style="display:none">
+    <h2>Sua sala</h2>
+    <div class="roomcode" id="roomCode">·····</div>
+    <button onclick="copyLink()" id="copyBtn">📋 Copiar link de convite</button>
+    <div class="lobbyStatus pulse" id="createStatus">Criando sala...</div>
+    <button onclick="backLobby()">Voltar</button>
+  </div>
+  <div class="box" id="lobbyJoin" style="display:none">
+    <h2>Código da sala</h2>
+    <input id="joinCode" maxlength="5" placeholder="ABCDE" autocomplete="off">
+    <button class="primary" onclick="joinRoom()">Entrar</button>
+    <div class="lobbyStatus" id="joinStatus"></div>
+    <button onclick="backLobby()">Voltar</button>
+  </div>
+</div>
+
+<!-- Desconexão -->
+<div class="overlay" id="discOverlay">
+  <h1>CONEXÃO PERDIDA</h1>
+  <div style="font-size:15px">O outro jogador saiu ou a conexão caiu.</div>
+  <button class="primary" style="font-size:16px;padding:12px 22px" onclick="location.href=location.pathname">Voltar ao início</button>
+</div>
+
+<!-- Regras -->
+<div class="modal-bg" id="rulesModal" onclick="if(event.target===this)closeRules()">
+  <div class="modal">
+    <h2>Regras (v0.4)</h2>
+    <h4>Cartas — deck de 30</h4>
+    <ul>
+      <li><b>🙌 Manchete (×12)</b> — defende qualquer jogada. Seu ataque só conta junto ao Saque. Pode passar a bola sozinha (bola livre, ataque 0).</li>
+      <li><b>👐 Levantamento (×9)</b> — defende ataques que não sejam Corte. Só sustenta um Corte se vier depois de uma Manchete na mesma jogada.</li>
+      <li><b>💥 Corte (×9)</b> — só pode ser jogado após um Levantamento (que veio após Manchete). Só pode ser defendido por Manchete.</li>
+      <li><b>🏐 Saque</b> — inicia o rally, jogado junto de 1 carta da mão; o ataque dessa carta define o poder do saque. Poder ≥ 4 = saque-corte (só Manchete defende).</li>
+    </ul>
+    <h4>O rally</h4>
+    <ul>
+      <li>Defesa: a carta precisa ter Defesa ≥ poder do ataque (e ser do tipo permitido). Sem defesa válida = ponto do adversário.</li>
+      <li><b>Bola livre (poder 0)</b> pode ser recebida por <b>qualquer carta</b> — inclusive Corte, mas aí você só consegue devolver outra bola livre.</li>
+      <li>Construção: Manchete → Levantamento → Corte (pode parar antes e passar). Poder = soma dos ataques (Manchete não soma, exceto no saque).</li>
+      <li>Refill: ao fim da sua jogada, complete a mão para 3 (mercado aberto ou deck).</li>
+    </ul>
+    <h4>Regras de equilíbrio</h4>
+    <ul>
+      <li><b>O recebedor do saque compra 1 carta extra</b> (mão vai a 4) antes de defender.</li>
+      <li><b>Quem sofre o ponto descarta a mão inteira e compra 3 cartas novas</b> — o time se reorganiza.</li>
+      <li>Partida até <b>3 pontos</b>. Quem ganha o ponto saca o próximo rally.</li>
+    </ul>
+    <h4>Modo online</h4>
+    <ul>
+      <li>Quem cria a sala é o Jogador 1 e saca o primeiro rally. Cada jogador só vê a própria mão.</li>
+    </ul>
+    <button class="close primary" onclick="closeRules()">Fechar</button>
+  </div>
+</div>
+
+<!-- Fim de jogo -->
+<div class="overlay" id="winOverlay">
+  <h1 id="winText">JOGADOR 1 VENCEU!</h1>
+  <div id="winScore" style="font-size:20px;font-weight:700"></div>
+  <button class="primary" style="font-size:16px;padding:12px 22px" onclick="uiNewGame()">Jogar de novo</button>
+</div>
+
+<script>
+/* =====================================================
+   RALLY! v0.4 — motor do jogo + rede (PeerJS)
+   Arquitetura: o HOST roda o motor completo (autoritativo).
+   O GUEST envia intenções e renderiza o estado recebido.
+   mode: 'local' | 'host' | 'guest'
+===================================================== */
+const CORTE_THRESHOLD = 4;
+const POINTS_TO_WIN   = 3;
+const ICONS = {manchete:'🙌', levantamento:'👐', corte:'💥', saque:'🏐'};
+const NAMES = {manchete:'Manchete', levantamento:'Levantamento', corte:'Corte', saque:'Saque'};
+
+let S = null;
+let mode = 'local';     // 'local' | 'host' | 'guest'
+let myPlayer = 0;       // host = 0 (J1), guest = 1 (J2)
+let peer = null, conn = null;
+let pendingLog = [];    // linhas de log a enviar ao guest
+
+/* ---------------- Deck (30 cartas) ---------------- */
+function buildDeck(){
+  const d = [];
+  [[5,3],[6,2],[6,3],[7,1],[7,2],[7,2],[8,1],[8,2],[9,1],[9,2],[10,1],[10,1]]
+   .forEach(([def,atk])=>d.push({t:'manchete',def,atk}));
+  [[2,2],[2,3],[2,4],[3,2],[3,3],[3,4],[4,2],[4,3],[4,4]]
+   .forEach(([def,atk])=>d.push({t:'levantamento',def,atk}));
+  [3,3,4,4,5,5,5,6,6].forEach(atk=>d.push({t:'corte',def:null,atk}));
+  d.forEach((c,i)=>c.id=i);
+  return d;
+}
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function drawCard(){
+  if(!S.deck.length){
+    if(S.discard.length){ S.deck = shuffle(S.discard.splice(0)); log('♻️ Descarte reembaralhado no deck.'); }
+    else return null;
+  }
+  return S.deck.pop();
+}
+
+/* ---------------- Motor ---------------- */
+function newGame(){
+  S = {
+    deck: shuffle(buildDeck()), discard: [], market: [],
+    hands: [[],[]], score: [0,0],
+    server: 0, turn: 0, phase: 'serve',
+    incoming: null, seq: [], seqAtk: 0, seqHasManchete: false,
+    afterRefill: null, refillTarget: 3, winner: null, lastPlay: [null,null]
+  };
+  for(let i=0;i<3;i++) S.market.push(drawCard());
+  for(let p=0;p<2;p++) for(let i=0;i<3;i++) S.hands[p].push(drawCard());
+  document.getElementById('log').innerHTML='';
+  document.getElementById('winOverlay').classList.remove('open');
+  log('🏐 Nova partida! Jogador 1 tem a carta de Saque. Primeiro a 3 pontos vence.');
+  render();
+}
+
+function cardLabel(c){
+  if(c.t==='corte') return `Corte (Atq ${c.atk})`;
+  return `${NAMES[c.t]} (Def ${c.def} / Atq ${c.atk})`;
+}
+function isValidDefense(c, inc){
+  if(!c || c.hidden) return false;
+  if(inc.power===0) return true;
+  if(c.t==='corte') return false;
+  if(inc.type==='corte' && c.t!=='manchete') return false;
+  return c.def >= inc.power;
+}
+function defenseError(c, inc){
+  if(c.t==='corte') return 'Corte só recebe bola livre (poder 0), não defende ataques!';
+  if(inc.type==='corte' && c.t!=='manchete') return 'Um Corte só pode ser defendido por Manchete!';
+  return `Defesa ${c.def} não alcança o poder ${inc.power} do ataque.`;
+}
+
+/* Ações do motor — executadas apenas por local/host */
+function engineHand(p, idx){
+  if(!S || S.winner!==null || p!==S.turn) return;
+  const hand = S.hands[p];
+  const c = hand[idx];
+  if(!c) return;
+
+  if(S.phase==='serve'){
+    hand.splice(idx,1);
+    const power = c.atk;
+    const type = power>=CORTE_THRESHOLD ? 'corte' : 'pass';
+    S.lastPlay[p] = [{t:'saque'}, c];
+    S.discard.push(c);
+    S.incoming = {power, type, from:p};
+    log(`J${p+1} saca com ${cardLabel(c)} → saque de poder <b>${power}</b>${type==='corte' ? ' 🔥 (força de corte, só Manchete defende!)' : ''}.`);
+    const receiver = 1-p;
+    startRefill(p, 3, ()=>{
+      log(`J${receiver+1} recebe o saque e compra 1 carta extra (mão vai a 4).`);
+      startRefill(receiver, 4, ()=>{ S.turn = receiver; S.phase='defend'; });
+    });
+    render(); return;
+  }
+
+  if(S.phase==='defend'){
+    if(!isValidDefense(c, S.incoming)) return;
+    hand.splice(idx,1);
+    S.seq=[c];
+    S.seqHasManchete = (c.t==='manchete');
+    S.seqAtk = (c.t==='levantamento') ? c.atk : 0;
+    S.lastPlay[p] = [...S.seq];
+    if(c.t==='corte'){
+      log(`J${p+1} recebe a bola livre de peixinho com ${cardLabel(c)} 🤸 — só consegue devolver outra bola livre.`);
+    } else {
+      log(`J${p+1} defende o ataque de poder ${S.incoming.power} com ${cardLabel(c)} ✅`);
+    }
+    S.incoming = null;
+    S.phase='build';
+    render(); return;
+  }
+
+  if(S.phase==='build'){
+    const last = S.seq[S.seq.length-1];
+    if(c.t==='levantamento' && last.t==='manchete'){
+      hand.splice(idx,1); S.seq.push(c); S.seqAtk += c.atk;
+      S.lastPlay[p] = [...S.seq];
+      log(`J${p+1} levanta com ${cardLabel(c)}.`);
+      render(); return;
+    }
+    if(c.t==='corte' && last.t==='levantamento' && S.seqHasManchete){
+      hand.splice(idx,1); S.seq.push(c); S.seqAtk += c.atk;
+      S.lastPlay[p] = [...S.seq];
+      log(`J${p+1} CORTA com ${cardLabel(c)}! 💥`);
+      enginePass();
+      return;
+    }
+  }
+}
+
+function enginePass(){
+  if(!S || S.phase!=='build') return;
+  const p = S.turn;
+  const last = S.seq[S.seq.length-1];
+  const type = (last.t==='corte' && S.seqHasManchete) ? 'corte' : 'pass';
+  const power = S.seqAtk;
+  S.seq.forEach(c=>S.discard.push(c));
+  S.seq=[]; S.seqAtk=0; S.seqHasManchete=false;
+  S.incoming = {power, type, from:p};
+  log(`J${p+1} devolve a bola — ataque de poder <b>${power}</b>${type==='corte'?' (Corte!)':power===0?' (bola livre)':''}.`);
+  startRefill(p, 3, ()=>{ S.turn = 1-p; S.phase='defend'; });
+  render();
+}
+
+function engineSuffer(p){
+  if(!S || S.phase!=='defend' || p!==S.turn) return;
+  const hasDef = S.hands[p].some(c=>isValidDefense(c, S.incoming));
+  if(hasDef) return; // proteção: só concede se realmente não há defesa
+  awardPoint(1-p, `J${p+1} não conseguiu defender o ataque de poder ${S.incoming.power}.`);
+}
+
+function startRefill(p, target, after){
+  if(S.hands[p].length>=target){ after(); return; }
+  S.phase='refill';
+  S.turn=p;
+  S.refillTarget=target;
+  S.afterRefill = after;
+}
+function engineMarket(p, i){
+  if(S.phase!=='refill' || p!==S.turn) return;
+  const c = S.market[i];
+  if(!c) return;
+  S.hands[p].push(c);
+  const nc = drawCard();
+  S.market[i] = nc || null;
+  log(`J${p+1} compra ${cardLabel(c)} do mercado.`);
+  checkRefillDone();
+}
+function engineDeck(p){
+  if(!S || S.phase!=='refill' || p!==S.turn) return;
+  const c = drawCard();
+  if(!c){ log('Deck e descarte vazios!'); checkRefillDone(true); return; }
+  S.hands[p].push(c);
+  log(`J${p+1} compra 1 carta fechada do deck.`);
+  checkRefillDone();
+}
+function engineAuto(p){
+  if(!S || S.phase!=='refill' || p!==S.turn) return;
+  while(S.hands[p].length<S.refillTarget){
+    const c = drawCard();
+    if(!c) break;
+    S.hands[p].push(c);
+  }
+  log(`J${p+1} completa a mão pelo deck.`);
+  checkRefillDone(true);
+}
+function checkRefillDone(force){
+  if(S.hands[S.turn].length>=S.refillTarget || force){
+    const fn = S.afterRefill; S.afterRefill=null;
+    if(fn) fn();
+  }
+  render();
+}
+
+function awardPoint(winner, reason){
+  S.score[winner]++;
+  log(`🏆 PONTO do Jogador ${winner+1}! ${reason} (${S.score[0]} × ${S.score[1]})`, true);
+  S.incoming=null; S.seq=[]; S.seqAtk=0; S.seqHasManchete=false;
+  S.lastPlay=[null,null];
+  if(S.score[winner]>=POINTS_TO_WIN){
+    S.winner=winner;
+    render(); return;
+  }
+  const loser = 1-winner;
+  while(S.hands[loser].length) S.discard.push(S.hands[loser].pop());
+  for(let i=0;i<3;i++){ const c=drawCard(); if(!c) break; S.hands[loser].push(c); }
+  log(`🔄 J${loser+1} descarta a mão e compra 3 cartas novas (o time se reorganiza).`);
+  let drew=0;
+  while(S.hands[winner].length<3){ const c=drawCard(); if(!c) break; S.hands[winner].push(c); drew++; }
+  if(drew) log(`J${winner+1} completa a mão para 3 antes do novo rally.`);
+  S.server = winner;
+  S.turn = winner;
+  S.phase = 'serve';
+  render();
+}
+
+/* ---------------- Rede (PeerJS) ---------------- */
+const CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function genCode(){let s='';for(let i=0;i<5;i++)s+=CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];return s;}
+let roomCode='';
+
+function showCreate(){
+  document.getElementById('lobbyHome').style.display='none';
+  document.getElementById('lobbyCreate').style.display='flex';
+  createRoom();
+}
+function showJoin(){
+  document.getElementById('lobbyHome').style.display='none';
+  document.getElementById('lobbyJoin').style.display='flex';
+  document.getElementById('joinCode').focus();
+}
+function backLobby(){
+  if(peer){ peer.destroy(); peer=null; conn=null; }
+  document.getElementById('lobbyCreate').style.display='none';
+  document.getElementById('lobbyJoin').style.display='none';
+  document.getElementById('lobbyHome').style.display='flex';
+}
+function createRoom(){
+  roomCode = genCode();
+  document.getElementById('roomCode').textContent = roomCode;
+  const st=document.getElementById('createStatus');
+  st.textContent='Conectando ao servidor de salas...';
+  peer = new Peer('rally-vb-'+roomCode);
+  peer.on('open', ()=>{ st.textContent='Sala pronta! Aguardando oponente...'; });
+  peer.on('connection', c=>{
+    conn=c;
+    conn.on('open', ()=>{
+      mode='host'; myPlayer=0;
+      setupConn();
+      hideLobby();
+      newGame();
+    });
+  });
+  peer.on('error', e=>{
+    if(e.type==='unavailable-id'){ createRoom(); }  // código colidiu, gera outro
+    else st.textContent='Erro: '+e.type+'. Tente novamente.';
+  });
+}
+function joinRoom(){
+  const code=(document.getElementById('joinCode').value||'').trim().toUpperCase();
+  const st=document.getElementById('joinStatus');
+  if(code.length!==5){ st.textContent='O código tem 5 caracteres.'; return; }
+  st.textContent='Conectando...'; st.classList.add('pulse');
+  peer = new Peer();
+  peer.on('open', ()=>{
+    conn = peer.connect('rally-vb-'+code, {reliable:true});
+    conn.on('open', ()=>{
+      mode='guest'; myPlayer=1;
+      setupConn();
+      hideLobby();
+      st.classList.remove('pulse');
+    });
+    setTimeout(()=>{ if(mode!=='guest'){ st.textContent='Sala não encontrada. Confira o código.'; st.classList.remove('pulse'); } }, 8000);
+  });
+  peer.on('error', e=>{ st.textContent='Erro: '+e.type; st.classList.remove('pulse'); });
+}
+function setupConn(){
+  conn.on('data', onData);
+  conn.on('close', ()=>{ document.getElementById('discOverlay').classList.add('open'); });
+  peer.on('disconnected', ()=>{ try{peer.reconnect();}catch(e){} });
+}
+function onData(d){
+  if(mode==='host'){
+    if(d.t==='act') applyAction(d.a, 1);
+  } else if(mode==='guest'){
+    if(d.t==='state'){
+      applyView(d.s);
+      (d.log||[]).forEach(l=>appendLog(l.m, l.p));
+      render();
+    }
+  }
+}
+function applyAction(a, actor){
+  if(a.a==='hand') engineHand(actor, a.idx);
+  else if(a.a==='pass'){ if(S && S.turn===actor) enginePass(); }
+  else if(a.a==='market') engineMarket(actor, a.idx);
+  else if(a.a==='deck') engineDeck(actor);
+  else if(a.a==='auto') engineAuto(actor);
+  else if(a.a==='suffer') engineSuffer(actor);
+  else if(a.a==='newgame') newGame();
+}
+function sendAct(a){ if(conn) conn.send({t:'act', a}); }
+
+/* Visão sanitizada enviada ao guest: a mão do host vira contagem */
+function buildView(){
+  return {
+    score:S.score, server:S.server, turn:S.turn, phase:S.phase,
+    incoming:S.incoming, winner:S.winner, deckCount:S.deck.length,
+    market:S.market, lastPlay:S.lastPlay, seq:S.seq, seqAtk:S.seqAtk,
+    seqHasManchete:S.seqHasManchete, refillTarget:S.refillTarget,
+    oppCount:S.hands[0].length, myHand:S.hands[1]
+  };
+}
+function applyView(v){
+  S = {
+    deck:{length:v.deckCount}, discard:[],
+    market:v.market, hands:[Array.from({length:v.oppCount},()=>({hidden:true})), v.myHand],
+    score:v.score, server:v.server, turn:v.turn, phase:v.phase,
+    incoming:v.incoming, winner:v.winner,
+    seq:v.seq, seqAtk:v.seqAtk, seqHasManchete:v.seqHasManchete,
+    afterRefill:null, refillTarget:v.refillTarget, lastPlay:v.lastPlay
+  };
+}
+function broadcast(){
+  if(mode==='host' && conn && conn.open && S){
+    conn.send({t:'state', s:buildView(), log:pendingLog.splice(0)});
+  }
+}
+
+/* ---------------- UI: cliques ---------------- */
+function isMine(p){ return mode==='local' ? true : p===myPlayer; }
+
+function uiHand(p, idx){
+  if(!S || S.winner!==null) return;
+  if(!isMine(p) || p!==S.turn){ flash(p, idx); return; }
+  const c = S.hands[p][idx];
+  // validação local para feedback imediato
+  if(S.phase==='defend' && !isValidDefense(c, S.incoming)){
+    flash(p, idx); setStatusHint(defenseError(c, S.incoming)); return;
+  }
+  if(S.phase==='build'){
+    const last = S.seq[S.seq.length-1];
+    const ok = (c.t==='levantamento' && last.t==='manchete') ||
+               (c.t==='corte' && last.t==='levantamento' && S.seqHasManchete);
+    if(!ok){
+      flash(p, idx);
+      if(S.seq[0].t==='corte') setStatusHint('Recebeu de peixinho — não dá pra armar nada, só passar a bola.');
+      else if(c.t==='corte') setStatusHint('O Corte só pode vir após um Levantamento (que veio após Manchete).');
+      else if(c.t==='levantamento') setStatusHint('O Levantamento só entra na sequência após uma Manchete.');
+      else setStatusHint('A Manchete só pode iniciar a jogada (defesa), não continuar a sequência.');
+      return;
+    }
+  }
+  if(S.phase==='refill'){ flash(p, idx); return; }
+  if(mode==='guest') sendAct({a:'hand', idx});
+  else engineHand(p, idx);
+}
+function uiPass(){
+  if(!S || S.phase!=='build' || !isMine(S.turn)) return;
+  if(mode==='guest') sendAct({a:'pass'});
+  else enginePass();
+}
+function uiSuffer(){
+  if(!S || S.phase!=='defend' || !isMine(S.turn)) return;
+  if(mode==='guest') sendAct({a:'suffer'});
+  else engineSuffer(S.turn);
+}
+function uiMarket(i){
+  if(!S || S.phase!=='refill' || !isMine(S.turn)) return;
+  if(mode==='guest') sendAct({a:'market', idx:i});
+  else engineMarket(S.turn, i);
+}
+function uiDeck(){
+  if(!S || S.phase!=='refill' || !isMine(S.turn)) return;
+  if(mode==='guest') sendAct({a:'deck'});
+  else engineDeck(S.turn);
+}
+function uiAuto(){
+  if(!S || S.phase!=='refill' || !isMine(S.turn)) return;
+  if(mode==='guest') sendAct({a:'auto'});
+  else engineAuto(S.turn);
+}
+function uiNewGame(){
+  if(mode==='guest'){ sendAct({a:'newgame'}); return; }
+  if(mode==='host' || mode==='local') newGame();
+}
+
+/* ---------------- Render ---------------- */
+function render(){
+  if(!S) return;
+  document.getElementById('score1').textContent=S.score[0];
+  document.getElementById('score2').textContent=S.score[1];
+  document.getElementById('scoreWrap1').classList.toggle('serving', S.server===0);
+  document.getElementById('scoreWrap2').classList.toggle('serving', S.server===1);
+  document.getElementById('deckCount').textContent = S.deck.length;
+
+  [0,1].forEach(p=>{
+    const active = S.turn===p && S.winner===null;
+    document.getElementById('zone'+(p+1)).classList.toggle('active', active);
+    const showBadge = active && (mode==='local' || p===myPlayer);
+    document.getElementById('turnBadge'+(p+1)).style.display = showBadge?'inline-block':'none';
+  });
+
+  // mãos
+  [0,1].forEach(p=>{
+    const el = document.getElementById('hand'+(p+1));
+    el.innerHTML='';
+    const hideThis = (mode!=='local' && p!==myPlayer);
+    S.hands[p].forEach((c,i)=>{
+      if(hideThis || c.hidden){
+        el.appendChild(renderBack());
+      } else {
+        el.appendChild(renderCard(c, playableInfo(p,c), ()=>uiHand(p,i), 'h'+p+'-'+i));
+      }
+    });
+    if(S.phase==='serve' && S.turn===p && S.winner===null && (mode==='local'||p===myPlayer)){
+      const sq = renderCard({t:'saque',def:null,atk:null}, false, null, 'sq');
+      sq.style.opacity='.9';
+      el.appendChild(sq);
+    }
+  });
+
+  // mesa
+  [0,1].forEach(p=>{
+    const el = document.getElementById('table'+(p+1));
+    el.innerHTML = `<span class="half-label" style="${p===1?'top:8px':'bottom:8px'}">LADO J${p+1}</span>`;
+    const cards = (S.phase==='build' && S.turn===p) ? S.seq : (S.lastPlay[p]||[]);
+    (cards||[]).forEach(c=>{ el.appendChild(renderCard(c, false, null, null, true)); });
+    if(S.phase==='build' && S.turn===p && S.seq.length){
+      const tag=document.createElement('div');
+      tag.style.cssText='font-family:Bebas Neue;font-size:16px;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.35);padding:4px 10px;border-radius:8px';
+      tag.textContent = `Ataque atual: ${S.seqAtk}`;
+      el.appendChild(tag);
+    }
+  });
+
+  // bola
+  const ball = document.getElementById('ball');
+  if(S.incoming && S.winner===null){
+    ball.style.display='block';
+    ball.innerHTML = `🏐 ${S.incoming.type==='corte'?'CORTE':(S.incoming.power===0?'Bola livre':'Bola')} no ar <span class="pw">${S.incoming.power}</span>`;
+  } else ball.style.display='none';
+
+  // mercado
+  const mk = document.getElementById('market');
+  mk.innerHTML='';
+  const canRefill = S.phase==='refill' && (mode==='local' || S.turn===myPlayer);
+  S.market.forEach((c,i)=>{
+    if(!c){ const gap=document.createElement('div'); gap.style.cssText='width:64px;height:88px;border:2px dashed var(--muted);border-radius:10px;opacity:.4'; mk.appendChild(gap); return; }
+    mk.appendChild(renderCard(c, canRefill, ()=>uiMarket(i), 'm'+i, true));
+  });
+  document.getElementById('deckPile').classList.toggle('playable', canRefill);
+  document.getElementById('marketPanel').classList.toggle('hot', canRefill);
+  const hint=document.getElementById('refillHint');
+  hint.style.display = canRefill?'block':'none';
+  if(canRefill) hint.textContent = `Refill: pegue cartas do mercado ou do deck até ter ${S.refillTarget} na mão.`;
+  document.getElementById('autoRefillBtn').style.display = canRefill?'inline-block':'none';
+
+  // fim de jogo
+  if(S.winner!==null){
+    const meWon = (mode==='local') ? null : (S.winner===myPlayer);
+    document.getElementById('winText').textContent =
+      meWon===null ? `JOGADOR ${S.winner+1} VENCEU!` : (meWon ? 'VOCÊ VENCEU! 🏆' : 'VOCÊ PERDEU...');
+    document.getElementById('winScore').textContent = `${S.score[0]} × ${S.score[1]}`;
+    document.getElementById('winOverlay').classList.add('open');
+  } else {
+    document.getElementById('winOverlay').classList.remove('open');
+  }
+
+  renderStatus();
+  broadcast();
+}
+
+function playableInfo(p,c){
+  if(!S || S.winner!==null || S.turn!==p || c.hidden) return false;
+  if(mode!=='local' && p!==myPlayer) return false;
+  if(S.phase==='serve') return true;
+  if(S.phase==='defend') return isValidDefense(c, S.incoming);
+  if(S.phase==='build'){
+    const last = S.seq[S.seq.length-1];
+    if(c.t==='levantamento' && last.t==='manchete') return true;
+    if(c.t==='corte' && last.t==='levantamento' && S.seqHasManchete) return true;
+    return false;
+  }
+  return false;
+}
+
+function renderCard(c, playable, onClick, id, mini){
+  const el = document.createElement('div');
+  el.className = `card ${c.t}${playable?' playable':''}${(!playable && onClick)?' dim':''}${mini?' mini':''}`;
+  if(id) el.id='card-'+id;
+  const stats = c.t==='saque'
+    ? `<div class="stat"><span>especial</span></div>`
+    : (c.t==='corte'
+      ? `<div class="stat atk"><b>${c.atk}</b><span>ATAQUE</span></div>`
+      : `<div class="stat def"><b>${c.def}</b><span>DEF</span></div><div class="stat atk"><b>${c.atk}</b><span>ATQ</span></div>`);
+  el.innerHTML = `<div class="top">${NAMES[c.t]}</div><div class="icon">${ICONS[c.t]}</div><div class="stats">${stats}</div>`;
+  if(onClick) el.addEventListener('click', onClick);
+  return el;
+}
+function renderBack(){
+  const el=document.createElement('div');
+  el.className='card back';
+  return el;
+}
+
+let hintTimeout=null;
+function setStatusHint(msg){
+  const bar=document.getElementById('statusBar');
+  const msgEl=document.getElementById('statusMsg');
+  msgEl.innerHTML='⚠️ '+msg;
+  bar.classList.add('alert');
+  clearTimeout(hintTimeout);
+  hintTimeout=setTimeout(()=>{bar.classList.remove('alert');renderStatus();},2200);
+}
+
+function renderStatus(){
+  const msgEl=document.getElementById('statusMsg');
+  const btns=document.getElementById('actionBtns');
+  btns.innerHTML='';
+  document.getElementById('statusBar').classList.remove('alert');
+  if(!S) return;
+  if(S.winner!==null){ msgEl.textContent='Partida encerrada.'; return; }
+
+  const mine = (mode==='local') || S.turn===myPlayer;
+  const J = (mode==='local') ? 'Jogador '+(S.turn+1) : (mine ? 'Você' : 'Oponente');
+
+  if(!mine){
+    const what = {serve:'sacando', defend:'defendendo', build:'armando a jogada', refill:'comprando cartas'}[S.phase]||'jogando';
+    msgEl.innerHTML=`⏳ Aguardando o oponente (Jogador ${S.turn+1}) — ${what}...`;
+    return;
+  }
+
+  if(S.phase==='serve'){
+    msgEl.innerHTML=`🏐 <b>${J}</b>: hora do saque! Clique em 1 carta — o Ataque dela define o poder do saque (≥ ${CORTE_THRESHOLD} vira Corte).`;
+  }
+  else if(S.phase==='defend'){
+    const inc=S.incoming;
+    const hasDef = S.hands[S.turn].some(c=>isValidDefense(c,inc));
+    if(hasDef){
+      if(inc.power===0){
+        msgEl.innerHTML=`🛡️ <b>${J}</b>: bola livre! Qualquer carta recebe — mas receber com Corte só devolve outra bola livre.`;
+      } else {
+        msgEl.innerHTML=`🛡️ <b>${J}</b>: defenda o ${inc.type==='corte'?'<b>CORTE</b> (só Manchete!)':'ataque'} de poder <b>${inc.power}</b>. As cartas válidas estão destacadas.`;
+      }
+    } else {
+      msgEl.innerHTML=`💀 <b>${J}</b> não tem defesa válida contra o ataque de poder <b>${inc.power}</b>${inc.type==='corte'?' (Corte)':''}!`;
+      const b=document.createElement('button');
+      b.className='danger';
+      b.textContent='Sofrer o ponto';
+      b.onclick=uiSuffer;
+      btns.appendChild(b);
+      document.getElementById('statusBar').classList.add('alert');
+    }
+  }
+  else if(S.phase==='build'){
+    const last=S.seq[S.seq.length-1];
+    let hint='';
+    if(S.seq[0].t==='corte') hint='Recebeu de peixinho — só resta devolver a bola livre.';
+    else if(last.t==='manchete') hint='Jogue um Levantamento para armar o Corte, ou passe a bola livre.';
+    else if(last.t==='levantamento' && S.seqHasManchete) hint='Jogue um Corte para atacar com força, ou passe a bola.';
+    else hint='Defesa com Levantamento não arma Corte — só resta passar a bola.';
+    msgEl.innerHTML=`⚔️ <b>${J}</b>: ${hint} Ataque acumulado: <b>${S.seqAtk}</b>.`;
+    const b=document.createElement('button');
+    b.className='primary';
+    b.textContent=`Passar a bola (ataque ${S.seqAtk})`;
+    b.onclick=uiPass;
+    btns.appendChild(b);
+  }
+  else if(S.phase==='refill'){
+    msgEl.innerHTML=`🃏 <b>${J}</b>: complete sua mão para ${S.refillTarget} cartas — clique nas cartas do mercado, no deck, ou use "Completar do deck".`;
+  }
+}
+
+function flash(p, idx){
+  const el=document.getElementById('card-h'+p+'-'+idx);
+  if(el){ el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+}
+
+function appendLog(msg, isPoint){
+  const el=document.getElementById('log');
+  const d=document.createElement('div');
+  if(isPoint) d.className='pt-log';
+  d.innerHTML=msg;
+  el.prepend(d);
+}
+function log(msg, isPoint){
+  appendLog(msg, isPoint);
+  if(mode==='host') pendingLog.push({m:msg, p:!!isPoint});
+}
+
+function openRules(){document.getElementById('rulesModal').classList.add('open')}
+function closeRules(){document.getElementById('rulesModal').classList.remove('open')}
+
+/* ---------------- Lobby / inicialização ---------------- */
+function hideLobby(){
+  document.getElementById('lobby').classList.remove('open');
+  const badge=document.getElementById('connBadge');
+  if(mode==='local'){
+    badge.style.display='inline-block'; badge.textContent='MODO LOCAL';
+  } else {
+    badge.style.display='inline-block';
+    badge.textContent = (mode==='host'?`SALA ${roomCode} • VOCÊ É O J1`:`ONLINE • VOCÊ É O J2`);
+    document.getElementById('handTitle1').textContent = myPlayer===0 ? 'Sua mão — Jogador 1' : 'Jogador 1 (oponente)';
+    document.getElementById('handTitle2').textContent = myPlayer===1 ? 'Sua mão — Jogador 2' : 'Jogador 2 (oponente)';
+    document.getElementById('scoreName1').textContent = myPlayer===0 ? 'Você (J1)' : 'Oponente (J1)';
+    document.getElementById('scoreName2').textContent = myPlayer===1 ? 'Você (J2)' : 'Oponente (J2)';
+    if(myPlayer===1) document.getElementById('board').classList.add('flip');
+  }
+}
+function startLocal(){ mode='local'; myPlayer=0; hideLobby(); newGame(); }
+function copyLink(){
+  const url = location.origin + location.pathname + '?sala=' + roomCode;
+  navigator.clipboard.writeText(url).then(()=>{
+    document.getElementById('copyBtn').textContent='✅ Link copiado!';
+    setTimeout(()=>document.getElementById('copyBtn').textContent='📋 Copiar link de convite',1600);
+  });
+}
+document.getElementById('joinCode').addEventListener('keydown', e=>{ if(e.key==='Enter') joinRoom(); });
+
+// entrada direta via link ?sala=CODIGO
+(function(){
+  const c = new URLSearchParams(location.search).get('sala');
+  if(c){
+    document.getElementById('lobbyHome').style.display='none';
+    document.getElementById('lobbyJoin').style.display='flex';
+    document.getElementById('joinCode').value = c.toUpperCase();
+    joinRoom();
+  }
+})();
+</script>
+</body>
+</html>
