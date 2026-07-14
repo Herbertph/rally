@@ -4,6 +4,10 @@ Protótipo digital jogável do **Rally!**, um card game de duelo com temática d
 
 **Jogue agora:** depois de publicar no GitHub Pages, o jogo fica disponível em `https://SEU-USUARIO.github.io/NOME-DO-REPO/`
 
+## Idiomas
+
+O site é bilíngue (**português / inglês**). O idioma é detectado pelo navegador e pode ser trocado a qualquer momento pelo botão **EN/PT** no topo — inclusive no meio de uma partida online, e cada jogador vê o jogo no próprio idioma (nomes das cartas, narração, tudo). Também dá para forçar via URL: `?lang=en` ou `?lang=pt`.
+
 ## Modos de jogo
 
 - **🎮 Local** — 2 jogadores no mesmo aparelho (as duas mãos ficam visíveis; ideal para playtest presencial).

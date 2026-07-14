@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rally! — O Card Game de Vôlei</title>
+<title>Rally! — The Volleyball Card Game</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
@@ -35,6 +35,7 @@
   button.primary{background:var(--court);color:#fff}
   button.primary:hover{background:#e06f33}
   button.danger{background:var(--red);color:#fff}
+  button.lang{background:transparent;border:2px solid var(--navy2);padding:7px 12px}
   button:disabled{opacity:.5;cursor:default;transform:none}
   button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
@@ -137,7 +138,6 @@
   .overlay h1{font-family:'Bebas Neue';font-size:64px;letter-spacing:3px;color:var(--gold)}
   .overlay h1 span{color:var(--court)}
 
-  /* ---- lobby ---- */
   #lobby .box{background:var(--navy2);border-radius:16px;padding:26px;max-width:420px;width:100%;
     display:flex;flex-direction:column;gap:12px}
   #lobby .box h2{font-family:'Bebas Neue';font-size:20px;letter-spacing:1.5px;font-weight:400;color:var(--muted)}
@@ -145,6 +145,7 @@
   #lobby input{font-family:'Bebas Neue';font-size:24px;letter-spacing:6px;text-align:center;text-transform:uppercase;
     padding:10px;border-radius:8px;border:2px solid var(--muted);background:var(--navy);color:var(--line);width:100%}
   #lobby input:focus{outline:none;border-color:var(--gold)}
+  #lobbyLang{position:absolute;top:18px;right:18px}
   .roomcode{font-family:'Bebas Neue';font-size:52px;letter-spacing:10px;color:var(--gold)}
   .lobbyStatus{font-size:13px;color:var(--muted);min-height:20px}
   .pulse{animation:pulse 1.4s infinite}
@@ -155,15 +156,16 @@
 <body>
 
 <header>
-  <div class="logo">RALLY<span>!</span> <small>v0.4</small> <span id="connBadge"></span></div>
+  <div class="logo">RALLY<span>!</span> <small>v0.5</small> <span id="connBadge"></span></div>
   <div class="score">
     <div class="pt" id="scoreWrap1"><small id="scoreName1">Jogador 1</small><span id="score1">0</span></div>
     <div style="font-size:20px;color:var(--muted)">×</div>
     <div class="pt" id="scoreWrap2"><small id="scoreName2">Jogador 2</small><span id="score2">0</span></div>
   </div>
   <div class="hdr-btns">
-    <button onclick="openRules()">Regras</button>
-    <button class="primary" onclick="uiNewGame()">Nova partida</button>
+    <button class="lang" id="langBtn" onclick="toggleLang()">EN</button>
+    <button onclick="openRules()" id="btnRules">Regras</button>
+    <button class="primary" onclick="uiNewGame()" id="btnNew">Nova partida</button>
   </div>
 </header>
 
@@ -175,9 +177,9 @@
     </div>
 
     <div class="court">
-      <div class="half" id="table2"><span class="half-label" style="top:8px">LADO J2</span></div>
+      <div class="half" id="table2"><span class="half-label" style="top:8px"></span></div>
       <div class="net"><div class="ball" id="ball" style="display:none"></div></div>
-      <div class="half" id="table1"><span class="half-label" style="bottom:8px">LADO J1</span></div>
+      <div class="half" id="table1"><span class="half-label" style="bottom:8px"></span></div>
     </div>
 
     <div class="status-bar" id="statusBar">
@@ -193,7 +195,7 @@
 
   <aside>
     <div class="panel" id="marketPanel">
-      <h3>Mercado &amp; Deck</h3>
+      <h3 id="marketTitle">Mercado &amp; Deck</h3>
       <div class="deck-row">
         <div class="deck-pile" id="deckPile" onclick="uiDeck()"><span>DECK</span><b id="deckCount">0</b></div>
         <div class="market-cards" id="market"></div>
@@ -202,7 +204,7 @@
       <button id="autoRefillBtn" style="display:none;margin-top:8px" class="primary" onclick="uiAuto()">Completar do deck</button>
     </div>
     <div class="panel">
-      <h3>Narração</h3>
+      <h3 id="logTitle">Narração</h3>
       <div id="log"></div>
     </div>
   </aside>
@@ -210,40 +212,131 @@
 
 <!-- Lobby -->
 <div class="overlay open" id="lobby">
+  <button class="lang" id="lobbyLang" onclick="toggleLang()">EN</button>
   <h1>RALLY<span>!</span></h1>
-  <div style="font-size:14px;color:var(--muted);margin-top:-10px">O card game de vôlei — protótipo v0.4</div>
+  <div style="font-size:14px;color:var(--muted);margin-top:-10px" id="lobbySub"></div>
   <div class="box" id="lobbyHome">
-    <button class="primary" onclick="startLocal()">🎮 Jogar local (2 no mesmo aparelho)</button>
-    <button onclick="showCreate()">🌐 Criar sala online</button>
-    <button onclick="showJoin()">🔗 Entrar em uma sala</button>
+    <button class="primary" onclick="startLocal()" id="btnLocal"></button>
+    <button onclick="showCreate()" id="btnCreate"></button>
+    <button onclick="showJoin()" id="btnJoin"></button>
   </div>
   <div class="box" id="lobbyCreate" style="display:none">
-    <h2>Sua sala</h2>
+    <h2 id="yourRoomTitle"></h2>
     <div class="roomcode" id="roomCode">·····</div>
-    <button onclick="copyLink()" id="copyBtn">📋 Copiar link de convite</button>
-    <div class="lobbyStatus pulse" id="createStatus">Criando sala...</div>
-    <button onclick="backLobby()">Voltar</button>
+    <button onclick="copyLink()" id="copyBtn"></button>
+    <div class="lobbyStatus pulse" id="createStatus"></div>
+    <button onclick="backLobby()" id="btnBack1"></button>
   </div>
   <div class="box" id="lobbyJoin" style="display:none">
-    <h2>Código da sala</h2>
+    <h2 id="roomCodeTitle"></h2>
     <input id="joinCode" maxlength="5" placeholder="ABCDE" autocomplete="off">
-    <button class="primary" onclick="joinRoom()">Entrar</button>
+    <button class="primary" onclick="joinRoom()" id="btnEnter"></button>
     <div class="lobbyStatus" id="joinStatus"></div>
-    <button onclick="backLobby()">Voltar</button>
+    <button onclick="backLobby()" id="btnBack2"></button>
   </div>
 </div>
 
 <!-- Desconexão -->
 <div class="overlay" id="discOverlay">
-  <h1>CONEXÃO PERDIDA</h1>
-  <div style="font-size:15px">O outro jogador saiu ou a conexão caiu.</div>
-  <button class="primary" style="font-size:16px;padding:12px 22px" onclick="location.href=location.pathname">Voltar ao início</button>
+  <h1 id="discTitle"></h1>
+  <div style="font-size:15px" id="discBody"></div>
+  <button class="primary" style="font-size:16px;padding:12px 22px" onclick="location.href=location.pathname" id="discBtn"></button>
 </div>
 
 <!-- Regras -->
 <div class="modal-bg" id="rulesModal" onclick="if(event.target===this)closeRules()">
   <div class="modal">
-    <h2>Regras (v0.4)</h2>
+    <div id="rulesContent"></div>
+    <button class="close primary" onclick="closeRules()" id="btnCloseRules">Fechar</button>
+  </div>
+</div>
+
+<!-- Fim de jogo -->
+<div class="overlay" id="winOverlay">
+  <h1 id="winText"></h1>
+  <div id="winScore" style="font-size:20px;font-weight:700"></div>
+  <button class="primary" style="font-size:16px;padding:12px 22px" onclick="uiNewGame()" id="btnAgain"></button>
+</div>
+
+<script>
+/* =====================================================
+   RALLY! v0.5 — motor + rede (PeerJS) + i18n PT/EN
+   O HOST roda o motor (autoritativo); o GUEST envia
+   intenções e renderiza o estado. A narração viaja
+   estruturada e é traduzida no idioma de cada jogador.
+===================================================== */
+const CORTE_THRESHOLD = 4;
+const POINTS_TO_WIN   = 3;
+const ICONS = {manchete:'🙌', levantamento:'👐', corte:'💥', saque:'🏐'};
+
+/* ---------------- i18n ---------------- */
+const T = {
+pt: {
+  cards:{manchete:'Manchete', levantamento:'Levantamento', corte:'Corte', saque:'Saque'},
+  def:'DEF', atk:'ATQ', attackStat:'ATAQUE', special:'especial',
+  cardLabelFull:'{name} (Def {def} / Atq {atk})', cardLabelCorte:'Corte (Atq {atk})',
+  btnRules:'Regras', btnNew:'Nova partida', btnAgain:'Jogar de novo', btnCloseRules:'Fechar',
+  marketTitle:'Mercado & Deck', logTitle:'Narração',
+  autoRefill:'Completar do deck', refillHintTxt:'Refill: pegue cartas do mercado ou do deck até ter {n} na mão.',
+  sideLabel:'LADO J{n}', yourTurn:'SUA VEZ',
+  handPlayer:'Mão — Jogador {n}', handMine:'Sua mão — Jogador {n}', handOpp:'Jogador {n} (oponente)',
+  scorePlayer:'Jogador {n}', scoreYou:'Você (J{n})', scoreOpp:'Oponente (J{n})',
+  badgeLocal:'MODO LOCAL', badgeHost:'SALA {code} • VOCÊ É O J1', badgeGuest:'ONLINE • VOCÊ É O J2',
+  lobbySub:'O card game de vôlei — protótipo v0.5',
+  btnLocal:'🎮 Jogar local (2 no mesmo aparelho)', btnCreate:'🌐 Criar sala online', btnJoin:'🔗 Entrar em uma sala',
+  yourRoom:'Sua sala', copyLink:'📋 Copiar link de convite', copied:'✅ Link copiado!',
+  creating:'Criando sala...', connectingServer:'Conectando ao servidor de salas...', waiting:'Sala pronta! Aguardando oponente...',
+  back:'Voltar', roomCodeTitle:'Código da sala', enter:'Entrar',
+  codeLen:'O código tem 5 caracteres.', connecting:'Conectando...', notFound:'Sala não encontrada. Confira o código.', errPrefix:'Erro: ',
+  discTitle:'CONEXÃO PERDIDA', discBody:'O outro jogador saiu ou a conexão caiu.', discBtn:'Voltar ao início',
+  winPlayer:'JOGADOR {n} VENCEU!', winYou:'VOCÊ VENCEU! 🏆', winLose:'VOCÊ PERDEU...', ended:'Partida encerrada.',
+  ballCorte:'🏐 CORTE no ar', ballFree:'🏐 Bola livre no ar', ballNormal:'🏐 Bola no ar',
+  attackNow:'Ataque atual: {n}',
+  you:'Você', playerN:'Jogador {n}',
+  waitingOpp:'⏳ Aguardando o oponente (Jogador {n}) — {doing}...',
+  doing:{serve:'sacando', defend:'defendendo', build:'armando a jogada', refill:'comprando cartas'},
+  stServe:'🏐 <b>{J}</b>: hora do saque! Clique em 1 carta — o Ataque dela define o poder do saque (≥ {th} vira Corte).',
+  stFree:'🛡️ <b>{J}</b>: bola livre! Qualquer carta recebe — mas receber com Corte só devolve outra bola livre.',
+  stDefend:'🛡️ <b>{J}</b>: defenda o {what} de poder <b>{power}</b>. As cartas válidas estão destacadas.',
+  stDefendCorte:'<b>CORTE</b> (só Manchete!)', stDefendNormal:'ataque',
+  stNoDef:'💀 <b>{J}</b> não tem defesa válida contra o ataque de poder <b>{power}</b>{c}!',
+  stNoDefCorte:' (Corte)', btnSuffer:'Sofrer o ponto',
+  stBuild:'⚔️ <b>{J}</b>: {hint} Ataque acumulado: <b>{atk}</b>.',
+  hintDig:'Recebeu de peixinho — só resta devolver a bola livre.',
+  hintAfterBump:'Jogue um Levantamento para armar o Corte, ou passe a bola livre.',
+  hintAfterSet:'Jogue um Corte para atacar com força, ou passe a bola.',
+  hintLevOnly:'Defesa com Levantamento não arma Corte — só resta passar a bola.',
+  btnPass:'Passar a bola (ataque {n})',
+  stRefill:'🃏 <b>{J}</b>: complete sua mão para {n} cartas — clique nas cartas do mercado, no deck, ou use "{auto}".',
+  errCorteNoDef:'Corte só recebe bola livre (poder 0), não defende ataques!',
+  errCorteOnlyM:'Um Corte só pode ser defendido por Manchete!',
+  errDefLow:'Defesa {def} não alcança o poder {power} do ataque.',
+  errDig:'Recebeu de peixinho — não dá pra armar nada, só passar a bola.',
+  errCorteOrder:'O Corte só pode vir após um Levantamento (que veio após Manchete).',
+  errSetOrder:'O Levantamento só entra na sequência após uma Manchete.',
+  errBumpOrder:'A Manchete só pode iniciar a jogada (defesa), não continuar a sequência.',
+  lg:{
+    newGame:'🏐 Nova partida! Jogador 1 tem a carta de Saque. Primeiro a 3 pontos vence.',
+    reshuffle:'♻️ Descarte reembaralhado no deck.',
+    serve:'J{p} saca com {card} → saque de poder <b>{power}</b>{c}.',
+    serveCorte:' 🔥 (força de corte, só Manchete defende!)',
+    receiver:'J{p} recebe o saque e compra 1 carta extra (mão vai a 4).',
+    dig:'J{p} recebe a bola livre de peixinho com {card} 🤸 — só consegue devolver outra bola livre.',
+    defend:'J{p} defende o ataque de poder {power} com {card} ✅',
+    set:'J{p} levanta com {card}.',
+    spike:'J{p} CORTA com {card}! 💥',
+    ret:'J{p} devolve a bola — ataque de poder <b>{power}</b>{c}.',
+    retCorte:' (Corte!)', retFree:' (bola livre)',
+    buyMarket:'J{p} compra {card} do mercado.',
+    buyDeck:'J{p} compra 1 carta fechada do deck.',
+    autoFill:'J{p} completa a mão pelo deck.',
+    deckEmpty:'Deck e descarte vazios!',
+    point:'🏆 PONTO do Jogador {w}! J{l} não conseguiu defender o ataque de poder {power}. ({s0} × {s1})',
+    mulligan:'🔄 J{p} descarta a mão e compra 3 cartas novas (o time se reorganiza).',
+    topup:'J{p} completa a mão para 3 antes do novo rally.'
+  },
+  rulesHtml:`
+    <h2>Regras (v0.5)</h2>
     <h4>Cartas — deck de 30</h4>
     <ul>
       <li><b>🙌 Manchete (×12)</b> — defende qualquer jogada. Seu ataque só conta junto ao Saque. Pode passar a bola sozinha (bola livre, ataque 0).</li>
@@ -267,37 +360,124 @@
     <h4>Modo online</h4>
     <ul>
       <li>Quem cria a sala é o Jogador 1 e saca o primeiro rally. Cada jogador só vê a própria mão.</li>
+    </ul>`
+},
+en: {
+  cards:{manchete:'Bump', levantamento:'Set', corte:'Spike', saque:'Serve'},
+  def:'DEF', atk:'ATK', attackStat:'ATTACK', special:'special',
+  cardLabelFull:'{name} (Def {def} / Atk {atk})', cardLabelCorte:'Spike (Atk {atk})',
+  btnRules:'Rules', btnNew:'New match', btnAgain:'Play again', btnCloseRules:'Close',
+  marketTitle:'Market & Deck', logTitle:'Commentary',
+  autoRefill:'Fill from deck', refillHintTxt:'Refill: take cards from the market or the deck until you hold {n}.',
+  sideLabel:'P{n} SIDE', yourTurn:'YOUR TURN',
+  handPlayer:'Hand — Player {n}', handMine:'Your hand — Player {n}', handOpp:'Player {n} (opponent)',
+  scorePlayer:'Player {n}', scoreYou:'You (P{n})', scoreOpp:'Opponent (P{n})',
+  badgeLocal:'LOCAL MODE', badgeHost:'ROOM {code} • YOU ARE P1', badgeGuest:'ONLINE • YOU ARE P2',
+  lobbySub:'The volleyball card game — prototype v0.5',
+  btnLocal:'🎮 Play local (2 on this device)', btnCreate:'🌐 Create online room', btnJoin:'🔗 Join a room',
+  yourRoom:'Your room', copyLink:'📋 Copy invite link', copied:'✅ Link copied!',
+  creating:'Creating room...', connectingServer:'Connecting to room server...', waiting:'Room ready! Waiting for opponent...',
+  back:'Back', roomCodeTitle:'Room code', enter:'Join',
+  codeLen:'The code has 5 characters.', connecting:'Connecting...', notFound:'Room not found. Check the code.', errPrefix:'Error: ',
+  discTitle:'CONNECTION LOST', discBody:'The other player left or the connection dropped.', discBtn:'Back to start',
+  winPlayer:'PLAYER {n} WINS!', winYou:'YOU WIN! 🏆', winLose:'YOU LOSE...', ended:'Match over.',
+  ballCorte:'🏐 SPIKE incoming', ballFree:'🏐 Free ball incoming', ballNormal:'🏐 Ball incoming',
+  attackNow:'Current attack: {n}',
+  you:'You', playerN:'Player {n}',
+  waitingOpp:'⏳ Waiting for the opponent (Player {n}) — {doing}...',
+  doing:{serve:'serving', defend:'defending', build:'building the play', refill:'drawing cards'},
+  stServe:'🏐 <b>{J}</b>: time to serve! Click 1 card — its Attack sets the serve power (≥ {th} becomes a Spike).',
+  stFree:'🛡️ <b>{J}</b>: free ball! Any card can receive it — but receiving with a Spike only returns another free ball.',
+  stDefend:'🛡️ <b>{J}</b>: defend the {what} with power <b>{power}</b>. Valid cards are highlighted.',
+  stDefendCorte:'<b>SPIKE</b> (Bump only!)', stDefendNormal:'attack',
+  stNoDef:'💀 <b>{J}</b> has no valid defense against the power <b>{power}</b> attack{c}!',
+  stNoDefCorte:' (Spike)', btnSuffer:'Concede the point',
+  stBuild:'⚔️ <b>{J}</b>: {hint} Accumulated attack: <b>{atk}</b>.',
+  hintDig:'Desperation dig — all you can do is return the free ball.',
+  hintAfterBump:'Play a Set to set up the Spike, or return a free ball.',
+  hintAfterSet:'Play a Spike to attack hard, or return the ball.',
+  hintLevOnly:'Defending with a Set cannot set up a Spike — just return the ball.',
+  btnPass:'Return the ball (attack {n})',
+  stRefill:'🃏 <b>{J}</b>: refill your hand to {n} cards — click market cards, the deck, or use "{auto}".',
+  errCorteNoDef:'A Spike can only receive free balls (power 0) — it cannot defend attacks!',
+  errCorteOnlyM:'A Spike can only be defended by a Bump!',
+  errDefLow:'Defense {def} cannot match the attack power {power}.',
+  errDig:'Desperation dig — you cannot build anything, just return the ball.',
+  errCorteOrder:'A Spike can only follow a Set (that followed a Bump).',
+  errSetOrder:'A Set only joins the sequence after a Bump.',
+  errBumpOrder:'A Bump can only start the play (defense), not continue the sequence.',
+  lg:{
+    newGame:'🏐 New match! Player 1 holds the Serve card. First to 3 points wins.',
+    reshuffle:'♻️ Discard pile reshuffled into the deck.',
+    serve:'P{p} serves with {card} → serve power <b>{power}</b>{c}.',
+    serveCorte:' 🔥 (spike force — only a Bump can receive it!)',
+    receiver:'P{p} receives the serve and draws 1 extra card (hand goes to 4).',
+    dig:'P{p} digs the free ball with {card} 🤸 — can only return another free ball.',
+    defend:'P{p} defends the power {power} attack with {card} ✅',
+    set:'P{p} sets with {card}.',
+    spike:'P{p} SPIKES with {card}! 💥',
+    ret:'P{p} returns the ball — attack power <b>{power}</b>{c}.',
+    retCorte:' (Spike!)', retFree:' (free ball)',
+    buyMarket:'P{p} takes {card} from the market.',
+    buyDeck:'P{p} draws 1 face-down card from the deck.',
+    autoFill:'P{p} fills their hand from the deck.',
+    deckEmpty:'Deck and discard pile are empty!',
+    point:'🏆 POINT for Player {w}! P{l} could not defend the power {power} attack. ({s0} × {s1})',
+    mulligan:'🔄 P{p} discards their hand and draws 3 fresh cards (the team regroups).',
+    topup:'P{p} refills to 3 cards before the new rally.'
+  },
+  rulesHtml:`
+    <h2>Rules (v0.5)</h2>
+    <h4>Cards — 30-card deck</h4>
+    <ul>
+      <li><b>🙌 Bump (×12)</b> — defends against any play. Its attack only counts with the Serve. Can return the ball alone (free ball, attack 0).</li>
+      <li><b>👐 Set (×9)</b> — defends anything except Spikes. Only sets up a Spike if it comes after a Bump in the same play.</li>
+      <li><b>💥 Spike (×9)</b> — can only be played after a Set (that followed a Bump). Can only be defended by a Bump.</li>
+      <li><b>🏐 Serve</b> — starts the rally, played with 1 card from your hand; that card's attack sets the serve power. Power ≥ 4 = spike serve (Bump only).</li>
     </ul>
-    <button class="close primary" onclick="closeRules()">Fechar</button>
-  </div>
-</div>
+    <h4>The rally</h4>
+    <ul>
+      <li>Defense: the card needs Defense ≥ the incoming attack power (and must be an allowed type). No valid defense = opponent scores.</li>
+      <li><b>Free balls (power 0)</b> can be received by <b>any card</b> — even a Spike, but then you can only return another free ball.</li>
+      <li>Building: Bump → Set → Spike (you may stop early and return). Power = sum of attacks (the Bump doesn't count, except on the Serve).</li>
+      <li>Refill: at the end of your play, refill your hand to 3 (open market or deck).</li>
+    </ul>
+    <h4>Balance rules</h4>
+    <ul>
+      <li><b>The serve receiver draws 1 extra card</b> (hand of 4) before defending.</li>
+      <li><b>Whoever concedes a point discards their whole hand and draws 3 fresh cards</b> — the team regroups.</li>
+      <li>First to <b>3 points</b>. The point winner serves the next rally.</li>
+    </ul>
+    <h4>Online mode</h4>
+    <ul>
+      <li>The room creator is Player 1 and serves the first rally. Each player only sees their own hand.</li>
+    </ul>`
+}
+};
 
-<!-- Fim de jogo -->
-<div class="overlay" id="winOverlay">
-  <h1 id="winText">JOGADOR 1 VENCEU!</h1>
-  <div id="winScore" style="font-size:20px;font-weight:700"></div>
-  <button class="primary" style="font-size:16px;padding:12px 22px" onclick="uiNewGame()">Jogar de novo</button>
-</div>
+let lang = 'pt';
+function t(key, vars){
+  let s = T[lang][key];
+  if(typeof s !== 'string') return s;
+  if(vars) for(const k in vars) s = s.split('{'+k+'}').join(vars[k]);
+  return s;
+}
+function tl(key, vars){ // log strings (dentro de lg)
+  let s = T[lang].lg[key];
+  if(vars) for(const k in vars) s = s.split('{'+k+'}').join(vars[k]);
+  return s;
+}
 
-<script>
-/* =====================================================
-   RALLY! v0.4 — motor do jogo + rede (PeerJS)
-   Arquitetura: o HOST roda o motor completo (autoritativo).
-   O GUEST envia intenções e renderiza o estado recebido.
-   mode: 'local' | 'host' | 'guest'
-===================================================== */
-const CORTE_THRESHOLD = 4;
-const POINTS_TO_WIN   = 3;
-const ICONS = {manchete:'🙌', levantamento:'👐', corte:'💥', saque:'🏐'};
-const NAMES = {manchete:'Manchete', levantamento:'Levantamento', corte:'Corte', saque:'Saque'};
-
+/* ---------------- Estado ---------------- */
 let S = null;
-let mode = 'local';     // 'local' | 'host' | 'guest'
-let myPlayer = 0;       // host = 0 (J1), guest = 1 (J2)
+let mode = 'local';
+let myPlayer = 0;
 let peer = null, conn = null;
-let pendingLog = [];    // linhas de log a enviar ao guest
+let pendingLog = [];
+let logEntries = [];
+let roomCode='';
 
-/* ---------------- Deck (30 cartas) ---------------- */
+/* ---------------- Deck ---------------- */
 function buildDeck(){
   const d = [];
   [[5,3],[6,2],[6,3],[7,1],[7,2],[7,2],[8,1],[8,2],[9,1],[9,2],[10,1],[10,1]]
@@ -314,10 +494,41 @@ function shuffle(a){
 }
 function drawCard(){
   if(!S.deck.length){
-    if(S.discard.length){ S.deck = shuffle(S.discard.splice(0)); log('♻️ Descarte reembaralhado no deck.'); }
+    if(S.discard.length){ S.deck = shuffle(S.discard.splice(0)); log('reshuffle', {}); }
     else return null;
   }
   return S.deck.pop();
+}
+
+/* ---------------- Log estruturado ---------------- */
+function cardLabel(c){
+  const name = T[lang].cards[c.t];
+  if(c.t==='corte') return t('cardLabelCorte', {atk:c.atk});
+  return t('cardLabelFull', {name, def:c.def, atk:c.atk});
+}
+function renderLogEntry(e){
+  const v = {...e.v};
+  if(v.card) v.card = cardLabel(v.card);
+  if(e.k==='serve') v.c = v.corte ? T[lang].lg.serveCorte : '';
+  if(e.k==='ret')   v.c = v.corte ? T[lang].lg.retCorte : (v.power===0 ? T[lang].lg.retFree : '');
+  return tl(e.k, v);
+}
+function appendLogDiv(e){
+  const el=document.getElementById('log');
+  const d=document.createElement('div');
+  if(e.pt) d.className='pt-log';
+  d.innerHTML=renderLogEntry(e);
+  el.prepend(d);
+}
+function log(k, v, isPoint){
+  const e = {k, v:v||{}, pt:!!isPoint};
+  logEntries.push(e);
+  appendLogDiv(e);
+  if(mode==='host') pendingLog.push(e);
+}
+function rerenderLogs(){
+  document.getElementById('log').innerHTML='';
+  logEntries.forEach(e=>appendLogDiv(e));
 }
 
 /* ---------------- Motor ---------------- */
@@ -331,16 +542,13 @@ function newGame(){
   };
   for(let i=0;i<3;i++) S.market.push(drawCard());
   for(let p=0;p<2;p++) for(let i=0;i<3;i++) S.hands[p].push(drawCard());
-  document.getElementById('log').innerHTML='';
+  logEntries=[]; document.getElementById('log').innerHTML='';
+  if(mode==='host' && conn && conn.open) conn.send({t:'reset'});
   document.getElementById('winOverlay').classList.remove('open');
-  log('🏐 Nova partida! Jogador 1 tem a carta de Saque. Primeiro a 3 pontos vence.');
+  log('newGame', {});
   render();
 }
 
-function cardLabel(c){
-  if(c.t==='corte') return `Corte (Atq ${c.atk})`;
-  return `${NAMES[c.t]} (Def ${c.def} / Atq ${c.atk})`;
-}
 function isValidDefense(c, inc){
   if(!c || c.hidden) return false;
   if(inc.power===0) return true;
@@ -348,13 +556,7 @@ function isValidDefense(c, inc){
   if(inc.type==='corte' && c.t!=='manchete') return false;
   return c.def >= inc.power;
 }
-function defenseError(c, inc){
-  if(c.t==='corte') return 'Corte só recebe bola livre (poder 0), não defende ataques!';
-  if(inc.type==='corte' && c.t!=='manchete') return 'Um Corte só pode ser defendido por Manchete!';
-  return `Defesa ${c.def} não alcança o poder ${inc.power} do ataque.`;
-}
 
-/* Ações do motor — executadas apenas por local/host */
 function engineHand(p, idx){
   if(!S || S.winner!==null || p!==S.turn) return;
   const hand = S.hands[p];
@@ -368,10 +570,10 @@ function engineHand(p, idx){
     S.lastPlay[p] = [{t:'saque'}, c];
     S.discard.push(c);
     S.incoming = {power, type, from:p};
-    log(`J${p+1} saca com ${cardLabel(c)} → saque de poder <b>${power}</b>${type==='corte' ? ' 🔥 (força de corte, só Manchete defende!)' : ''}.`);
+    log('serve', {p:p+1, card:c, power, corte:type==='corte'});
     const receiver = 1-p;
     startRefill(p, 3, ()=>{
-      log(`J${receiver+1} recebe o saque e compra 1 carta extra (mão vai a 4).`);
+      log('receiver', {p:receiver+1});
       startRefill(receiver, 4, ()=>{ S.turn = receiver; S.phase='defend'; });
     });
     render(); return;
@@ -384,11 +586,8 @@ function engineHand(p, idx){
     S.seqHasManchete = (c.t==='manchete');
     S.seqAtk = (c.t==='levantamento') ? c.atk : 0;
     S.lastPlay[p] = [...S.seq];
-    if(c.t==='corte'){
-      log(`J${p+1} recebe a bola livre de peixinho com ${cardLabel(c)} 🤸 — só consegue devolver outra bola livre.`);
-    } else {
-      log(`J${p+1} defende o ataque de poder ${S.incoming.power} com ${cardLabel(c)} ✅`);
-    }
+    if(c.t==='corte') log('dig', {p:p+1, card:c});
+    else log('defend', {p:p+1, power:S.incoming.power, card:c});
     S.incoming = null;
     S.phase='build';
     render(); return;
@@ -399,13 +598,13 @@ function engineHand(p, idx){
     if(c.t==='levantamento' && last.t==='manchete'){
       hand.splice(idx,1); S.seq.push(c); S.seqAtk += c.atk;
       S.lastPlay[p] = [...S.seq];
-      log(`J${p+1} levanta com ${cardLabel(c)}.`);
+      log('set', {p:p+1, card:c});
       render(); return;
     }
     if(c.t==='corte' && last.t==='levantamento' && S.seqHasManchete){
       hand.splice(idx,1); S.seq.push(c); S.seqAtk += c.atk;
       S.lastPlay[p] = [...S.seq];
-      log(`J${p+1} CORTA com ${cardLabel(c)}! 💥`);
+      log('spike', {p:p+1, card:c});
       enginePass();
       return;
     }
@@ -421,7 +620,7 @@ function enginePass(){
   S.seq.forEach(c=>S.discard.push(c));
   S.seq=[]; S.seqAtk=0; S.seqHasManchete=false;
   S.incoming = {power, type, from:p};
-  log(`J${p+1} devolve a bola — ataque de poder <b>${power}</b>${type==='corte'?' (Corte!)':power===0?' (bola livre)':''}.`);
+  log('ret', {p:p+1, power, corte:type==='corte'});
   startRefill(p, 3, ()=>{ S.turn = 1-p; S.phase='defend'; });
   render();
 }
@@ -429,8 +628,8 @@ function enginePass(){
 function engineSuffer(p){
   if(!S || S.phase!=='defend' || p!==S.turn) return;
   const hasDef = S.hands[p].some(c=>isValidDefense(c, S.incoming));
-  if(hasDef) return; // proteção: só concede se realmente não há defesa
-  awardPoint(1-p, `J${p+1} não conseguiu defender o ataque de poder ${S.incoming.power}.`);
+  if(hasDef) return;
+  awardPoint(1-p, S.incoming.power);
 }
 
 function startRefill(p, target, after){
@@ -447,15 +646,15 @@ function engineMarket(p, i){
   S.hands[p].push(c);
   const nc = drawCard();
   S.market[i] = nc || null;
-  log(`J${p+1} compra ${cardLabel(c)} do mercado.`);
+  log('buyMarket', {p:p+1, card:c});
   checkRefillDone();
 }
 function engineDeck(p){
   if(!S || S.phase!=='refill' || p!==S.turn) return;
   const c = drawCard();
-  if(!c){ log('Deck e descarte vazios!'); checkRefillDone(true); return; }
+  if(!c){ log('deckEmpty', {}); checkRefillDone(true); return; }
   S.hands[p].push(c);
-  log(`J${p+1} compra 1 carta fechada do deck.`);
+  log('buyDeck', {p:p+1});
   checkRefillDone();
 }
 function engineAuto(p){
@@ -465,7 +664,7 @@ function engineAuto(p){
     if(!c) break;
     S.hands[p].push(c);
   }
-  log(`J${p+1} completa a mão pelo deck.`);
+  log('autoFill', {p:p+1});
   checkRefillDone(true);
 }
 function checkRefillDone(force){
@@ -476,22 +675,22 @@ function checkRefillDone(force){
   render();
 }
 
-function awardPoint(winner, reason){
+function awardPoint(winner, power){
   S.score[winner]++;
-  log(`🏆 PONTO do Jogador ${winner+1}! ${reason} (${S.score[0]} × ${S.score[1]})`, true);
+  const loser = 1-winner;
+  log('point', {w:winner+1, l:loser+1, power, s0:S.score[0], s1:S.score[1]}, true);
   S.incoming=null; S.seq=[]; S.seqAtk=0; S.seqHasManchete=false;
   S.lastPlay=[null,null];
   if(S.score[winner]>=POINTS_TO_WIN){
     S.winner=winner;
     render(); return;
   }
-  const loser = 1-winner;
   while(S.hands[loser].length) S.discard.push(S.hands[loser].pop());
   for(let i=0;i<3;i++){ const c=drawCard(); if(!c) break; S.hands[loser].push(c); }
-  log(`🔄 J${loser+1} descarta a mão e compra 3 cartas novas (o time se reorganiza).`);
+  log('mulligan', {p:loser+1});
   let drew=0;
   while(S.hands[winner].length<3){ const c=drawCard(); if(!c) break; S.hands[winner].push(c); drew++; }
-  if(drew) log(`J${winner+1} completa a mão para 3 antes do novo rally.`);
+  if(drew) log('topup', {p:winner+1});
   S.server = winner;
   S.turn = winner;
   S.phase = 'serve';
@@ -501,7 +700,6 @@ function awardPoint(winner, reason){
 /* ---------------- Rede (PeerJS) ---------------- */
 const CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function genCode(){let s='';for(let i=0;i<5;i++)s+=CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];return s;}
-let roomCode='';
 
 function showCreate(){
   document.getElementById('lobbyHome').style.display='none';
@@ -523,9 +721,9 @@ function createRoom(){
   roomCode = genCode();
   document.getElementById('roomCode').textContent = roomCode;
   const st=document.getElementById('createStatus');
-  st.textContent='Conectando ao servidor de salas...';
+  st.textContent=t('connectingServer');
   peer = new Peer('rally-vb-'+roomCode);
-  peer.on('open', ()=>{ st.textContent='Sala pronta! Aguardando oponente...'; });
+  peer.on('open', ()=>{ st.textContent=t('waiting'); });
   peer.on('connection', c=>{
     conn=c;
     conn.on('open', ()=>{
@@ -536,15 +734,15 @@ function createRoom(){
     });
   });
   peer.on('error', e=>{
-    if(e.type==='unavailable-id'){ createRoom(); }  // código colidiu, gera outro
-    else st.textContent='Erro: '+e.type+'. Tente novamente.';
+    if(e.type==='unavailable-id'){ createRoom(); }
+    else st.textContent=t('errPrefix')+e.type;
   });
 }
 function joinRoom(){
   const code=(document.getElementById('joinCode').value||'').trim().toUpperCase();
   const st=document.getElementById('joinStatus');
-  if(code.length!==5){ st.textContent='O código tem 5 caracteres.'; return; }
-  st.textContent='Conectando...'; st.classList.add('pulse');
+  if(code.length!==5){ st.textContent=t('codeLen'); return; }
+  st.textContent=t('connecting'); st.classList.add('pulse');
   peer = new Peer();
   peer.on('open', ()=>{
     conn = peer.connect('rally-vb-'+code, {reliable:true});
@@ -554,9 +752,9 @@ function joinRoom(){
       hideLobby();
       st.classList.remove('pulse');
     });
-    setTimeout(()=>{ if(mode!=='guest'){ st.textContent='Sala não encontrada. Confira o código.'; st.classList.remove('pulse'); } }, 8000);
+    setTimeout(()=>{ if(mode!=='guest'){ st.textContent=t('notFound'); st.classList.remove('pulse'); } }, 8000);
   });
-  peer.on('error', e=>{ st.textContent='Erro: '+e.type; st.classList.remove('pulse'); });
+  peer.on('error', e=>{ st.textContent=t('errPrefix')+e.type; st.classList.remove('pulse'); });
 }
 function setupConn(){
   conn.on('data', onData);
@@ -567,9 +765,10 @@ function onData(d){
   if(mode==='host'){
     if(d.t==='act') applyAction(d.a, 1);
   } else if(mode==='guest'){
+    if(d.t==='reset'){ logEntries=[]; document.getElementById('log').innerHTML=''; document.getElementById('winOverlay').classList.remove('open'); }
     if(d.t==='state'){
       applyView(d.s);
-      (d.log||[]).forEach(l=>appendLog(l.m, l.p));
+      (d.log||[]).forEach(e=>{ logEntries.push(e); appendLogDiv(e); });
       render();
     }
   }
@@ -585,7 +784,6 @@ function applyAction(a, actor){
 }
 function sendAct(a){ if(conn) conn.send({t:'act', a}); }
 
-/* Visão sanitizada enviada ao guest: a mão do host vira contagem */
 function buildView(){
   return {
     score:S.score, server:S.server, turn:S.turn, phase:S.phase,
@@ -618,9 +816,13 @@ function uiHand(p, idx){
   if(!S || S.winner!==null) return;
   if(!isMine(p) || p!==S.turn){ flash(p, idx); return; }
   const c = S.hands[p][idx];
-  // validação local para feedback imediato
   if(S.phase==='defend' && !isValidDefense(c, S.incoming)){
-    flash(p, idx); setStatusHint(defenseError(c, S.incoming)); return;
+    flash(p, idx);
+    let msg;
+    if(c.t==='corte') msg=t('errCorteNoDef');
+    else if(S.incoming.type==='corte' && c.t!=='manchete') msg=t('errCorteOnlyM');
+    else msg=t('errDefLow', {def:c.def, power:S.incoming.power});
+    setStatusHint(msg); return;
   }
   if(S.phase==='build'){
     const last = S.seq[S.seq.length-1];
@@ -628,10 +830,10 @@ function uiHand(p, idx){
                (c.t==='corte' && last.t==='levantamento' && S.seqHasManchete);
     if(!ok){
       flash(p, idx);
-      if(S.seq[0].t==='corte') setStatusHint('Recebeu de peixinho — não dá pra armar nada, só passar a bola.');
-      else if(c.t==='corte') setStatusHint('O Corte só pode vir após um Levantamento (que veio após Manchete).');
-      else if(c.t==='levantamento') setStatusHint('O Levantamento só entra na sequência após uma Manchete.');
-      else setStatusHint('A Manchete só pode iniciar a jogada (defesa), não continuar a sequência.');
+      if(S.seq[0].t==='corte') setStatusHint(t('errDig'));
+      else if(c.t==='corte') setStatusHint(t('errCorteOrder'));
+      else if(c.t==='levantamento') setStatusHint(t('errSetOrder'));
+      else setStatusHint(t('errBumpOrder'));
       return;
     }
   }
@@ -666,7 +868,7 @@ function uiAuto(){
 }
 function uiNewGame(){
   if(mode==='guest'){ sendAct({a:'newgame'}); return; }
-  if(mode==='host' || mode==='local') newGame();
+  newGame();
 }
 
 /* ---------------- Render ---------------- */
@@ -685,7 +887,6 @@ function render(){
     document.getElementById('turnBadge'+(p+1)).style.display = showBadge?'inline-block':'none';
   });
 
-  // mãos
   [0,1].forEach(p=>{
     const el = document.getElementById('hand'+(p+1));
     el.innerHTML='';
@@ -704,28 +905,26 @@ function render(){
     }
   });
 
-  // mesa
   [0,1].forEach(p=>{
     const el = document.getElementById('table'+(p+1));
-    el.innerHTML = `<span class="half-label" style="${p===1?'top:8px':'bottom:8px'}">LADO J${p+1}</span>`;
+    el.innerHTML = `<span class="half-label" style="${p===1?'top:8px':'bottom:8px'}">${t('sideLabel',{n:p+1})}</span>`;
     const cards = (S.phase==='build' && S.turn===p) ? S.seq : (S.lastPlay[p]||[]);
     (cards||[]).forEach(c=>{ el.appendChild(renderCard(c, false, null, null, true)); });
     if(S.phase==='build' && S.turn===p && S.seq.length){
       const tag=document.createElement('div');
       tag.style.cssText='font-family:Bebas Neue;font-size:16px;letter-spacing:1px;color:#fff;background:rgba(0,0,0,.35);padding:4px 10px;border-radius:8px';
-      tag.textContent = `Ataque atual: ${S.seqAtk}`;
+      tag.textContent = t('attackNow', {n:S.seqAtk});
       el.appendChild(tag);
     }
   });
 
-  // bola
   const ball = document.getElementById('ball');
   if(S.incoming && S.winner===null){
     ball.style.display='block';
-    ball.innerHTML = `🏐 ${S.incoming.type==='corte'?'CORTE':(S.incoming.power===0?'Bola livre':'Bola')} no ar <span class="pw">${S.incoming.power}</span>`;
+    const key = S.incoming.type==='corte' ? 'ballCorte' : (S.incoming.power===0 ? 'ballFree' : 'ballNormal');
+    ball.innerHTML = `${t(key)} <span class="pw">${S.incoming.power}</span>`;
   } else ball.style.display='none';
 
-  // mercado
   const mk = document.getElementById('market');
   mk.innerHTML='';
   const canRefill = S.phase==='refill' && (mode==='local' || S.turn===myPlayer);
@@ -737,14 +936,13 @@ function render(){
   document.getElementById('marketPanel').classList.toggle('hot', canRefill);
   const hint=document.getElementById('refillHint');
   hint.style.display = canRefill?'block':'none';
-  if(canRefill) hint.textContent = `Refill: pegue cartas do mercado ou do deck até ter ${S.refillTarget} na mão.`;
+  if(canRefill) hint.textContent = t('refillHintTxt', {n:S.refillTarget});
   document.getElementById('autoRefillBtn').style.display = canRefill?'inline-block':'none';
 
-  // fim de jogo
   if(S.winner!==null){
     const meWon = (mode==='local') ? null : (S.winner===myPlayer);
     document.getElementById('winText').textContent =
-      meWon===null ? `JOGADOR ${S.winner+1} VENCEU!` : (meWon ? 'VOCÊ VENCEU! 🏆' : 'VOCÊ PERDEU...');
+      meWon===null ? t('winPlayer',{n:S.winner+1}) : (meWon ? t('winYou') : t('winLose'));
     document.getElementById('winScore').textContent = `${S.score[0]} × ${S.score[1]}`;
     document.getElementById('winOverlay').classList.add('open');
   } else {
@@ -773,12 +971,13 @@ function renderCard(c, playable, onClick, id, mini){
   const el = document.createElement('div');
   el.className = `card ${c.t}${playable?' playable':''}${(!playable && onClick)?' dim':''}${mini?' mini':''}`;
   if(id) el.id='card-'+id;
+  const L = T[lang];
   const stats = c.t==='saque'
-    ? `<div class="stat"><span>especial</span></div>`
+    ? `<div class="stat"><span>${L.special}</span></div>`
     : (c.t==='corte'
-      ? `<div class="stat atk"><b>${c.atk}</b><span>ATAQUE</span></div>`
-      : `<div class="stat def"><b>${c.def}</b><span>DEF</span></div><div class="stat atk"><b>${c.atk}</b><span>ATQ</span></div>`);
-  el.innerHTML = `<div class="top">${NAMES[c.t]}</div><div class="icon">${ICONS[c.t]}</div><div class="stats">${stats}</div>`;
+      ? `<div class="stat atk"><b>${c.atk}</b><span>${L.attackStat}</span></div>`
+      : `<div class="stat def"><b>${c.def}</b><span>${L.def}</span></div><div class="stat atk"><b>${c.atk}</b><span>${L.atk}</span></div>`);
+  el.innerHTML = `<div class="top">${L.cards[c.t]}</div><div class="icon">${ICONS[c.t]}</div><div class="stats">${stats}</div>`;
   if(onClick) el.addEventListener('click', onClick);
   return el;
 }
@@ -804,34 +1003,33 @@ function renderStatus(){
   btns.innerHTML='';
   document.getElementById('statusBar').classList.remove('alert');
   if(!S) return;
-  if(S.winner!==null){ msgEl.textContent='Partida encerrada.'; return; }
+  if(S.winner!==null){ msgEl.textContent=t('ended'); return; }
 
   const mine = (mode==='local') || S.turn===myPlayer;
-  const J = (mode==='local') ? 'Jogador '+(S.turn+1) : (mine ? 'Você' : 'Oponente');
+  const J = (mode==='local') ? t('playerN',{n:S.turn+1}) : t('you');
 
   if(!mine){
-    const what = {serve:'sacando', defend:'defendendo', build:'armando a jogada', refill:'comprando cartas'}[S.phase]||'jogando';
-    msgEl.innerHTML=`⏳ Aguardando o oponente (Jogador ${S.turn+1}) — ${what}...`;
+    msgEl.innerHTML=t('waitingOpp', {n:S.turn+1, doing:T[lang].doing[S.phase]||''});
     return;
   }
 
   if(S.phase==='serve'){
-    msgEl.innerHTML=`🏐 <b>${J}</b>: hora do saque! Clique em 1 carta — o Ataque dela define o poder do saque (≥ ${CORTE_THRESHOLD} vira Corte).`;
+    msgEl.innerHTML=t('stServe', {J, th:CORTE_THRESHOLD});
   }
   else if(S.phase==='defend'){
     const inc=S.incoming;
     const hasDef = S.hands[S.turn].some(c=>isValidDefense(c,inc));
     if(hasDef){
       if(inc.power===0){
-        msgEl.innerHTML=`🛡️ <b>${J}</b>: bola livre! Qualquer carta recebe — mas receber com Corte só devolve outra bola livre.`;
+        msgEl.innerHTML=t('stFree', {J});
       } else {
-        msgEl.innerHTML=`🛡️ <b>${J}</b>: defenda o ${inc.type==='corte'?'<b>CORTE</b> (só Manchete!)':'ataque'} de poder <b>${inc.power}</b>. As cartas válidas estão destacadas.`;
+        msgEl.innerHTML=t('stDefend', {J, power:inc.power, what: inc.type==='corte'?t('stDefendCorte'):t('stDefendNormal')});
       }
     } else {
-      msgEl.innerHTML=`💀 <b>${J}</b> não tem defesa válida contra o ataque de poder <b>${inc.power}</b>${inc.type==='corte'?' (Corte)':''}!`;
+      msgEl.innerHTML=t('stNoDef', {J, power:inc.power, c: inc.type==='corte'?t('stNoDefCorte'):''});
       const b=document.createElement('button');
       b.className='danger';
-      b.textContent='Sofrer o ponto';
+      b.textContent=t('btnSuffer');
       b.onclick=uiSuffer;
       btns.appendChild(b);
       document.getElementById('statusBar').classList.add('alert');
@@ -839,20 +1037,20 @@ function renderStatus(){
   }
   else if(S.phase==='build'){
     const last=S.seq[S.seq.length-1];
-    let hint='';
-    if(S.seq[0].t==='corte') hint='Recebeu de peixinho — só resta devolver a bola livre.';
-    else if(last.t==='manchete') hint='Jogue um Levantamento para armar o Corte, ou passe a bola livre.';
-    else if(last.t==='levantamento' && S.seqHasManchete) hint='Jogue um Corte para atacar com força, ou passe a bola.';
-    else hint='Defesa com Levantamento não arma Corte — só resta passar a bola.';
-    msgEl.innerHTML=`⚔️ <b>${J}</b>: ${hint} Ataque acumulado: <b>${S.seqAtk}</b>.`;
+    let hint;
+    if(S.seq[0].t==='corte') hint=t('hintDig');
+    else if(last.t==='manchete') hint=t('hintAfterBump');
+    else if(last.t==='levantamento' && S.seqHasManchete) hint=t('hintAfterSet');
+    else hint=t('hintLevOnly');
+    msgEl.innerHTML=t('stBuild', {J, hint, atk:S.seqAtk});
     const b=document.createElement('button');
     b.className='primary';
-    b.textContent=`Passar a bola (ataque ${S.seqAtk})`;
+    b.textContent=t('btnPass', {n:S.seqAtk});
     b.onclick=uiPass;
     btns.appendChild(b);
   }
   else if(S.phase==='refill'){
-    msgEl.innerHTML=`🃏 <b>${J}</b>: complete sua mão para ${S.refillTarget} cartas — clique nas cartas do mercado, no deck, ou use "Completar do deck".`;
+    msgEl.innerHTML=t('stRefill', {J, n:S.refillTarget, auto:t('autoRefill')});
   }
 }
 
@@ -861,50 +1059,95 @@ function flash(p, idx){
   if(el){ el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
 }
 
-function appendLog(msg, isPoint){
-  const el=document.getElementById('log');
-  const d=document.createElement('div');
-  if(isPoint) d.className='pt-log';
-  d.innerHTML=msg;
-  el.prepend(d);
-}
-function log(msg, isPoint){
-  appendLog(msg, isPoint);
-  if(mode==='host') pendingLog.push({m:msg, p:!!isPoint});
-}
-
 function openRules(){document.getElementById('rulesModal').classList.add('open')}
 function closeRules(){document.getElementById('rulesModal').classList.remove('open')}
 
-/* ---------------- Lobby / inicialização ---------------- */
+/* ---------------- Idioma ---------------- */
+function applyLang(){
+  document.documentElement.lang = lang==='pt' ? 'pt-BR' : 'en';
+  const setTxt=(id,val)=>{const e=document.getElementById(id); if(e) e.textContent=val;};
+  setTxt('langBtn', lang==='pt' ? 'EN' : 'PT');
+  setTxt('lobbyLang', lang==='pt' ? 'EN' : 'PT');
+  setTxt('btnRules', t('btnRules'));
+  setTxt('btnNew', t('btnNew'));
+  setTxt('btnAgain', t('btnAgain'));
+  setTxt('btnCloseRules', t('btnCloseRules'));
+  setTxt('marketTitle', t('marketTitle').replace('&','&'));
+  setTxt('logTitle', t('logTitle'));
+  setTxt('autoRefillBtn', t('autoRefill'));
+  setTxt('lobbySub', t('lobbySub'));
+  setTxt('btnLocal', t('btnLocal'));
+  setTxt('btnCreate', t('btnCreate'));
+  setTxt('btnJoin', t('btnJoin'));
+  setTxt('yourRoomTitle', t('yourRoom'));
+  setTxt('copyBtn', t('copyLink'));
+  setTxt('btnBack1', t('back'));
+  setTxt('btnBack2', t('back'));
+  setTxt('roomCodeTitle', t('roomCodeTitle'));
+  setTxt('btnEnter', t('enter'));
+  setTxt('discTitle', t('discTitle'));
+  setTxt('discBody', t('discBody'));
+  setTxt('discBtn', t('discBtn'));
+  document.getElementById('turnBadge1').textContent=t('yourTurn');
+  document.getElementById('turnBadge2').textContent=t('yourTurn');
+  document.getElementById('rulesContent').innerHTML = T[lang].rulesHtml;
+  // status de lobby que estejam visíveis
+  const cs=document.getElementById('createStatus');
+  if(cs.textContent && document.getElementById('lobbyCreate').style.display!=='none'){
+    cs.textContent = (peer && peer.open) ? t('waiting') : t('connectingServer');
+  }
+  applyIdentityLabels();
+  rerenderLogs();
+  if(S) render();
+}
+function applyIdentityLabels(){
+  if(mode==='local' || document.getElementById('lobby').classList.contains('open')){
+    document.getElementById('handTitle1').textContent = t('handPlayer',{n:1});
+    document.getElementById('handTitle2').textContent = t('handPlayer',{n:2});
+    document.getElementById('scoreName1').textContent = t('scorePlayer',{n:1});
+    document.getElementById('scoreName2').textContent = t('scorePlayer',{n:2});
+    if(mode==='local' && !document.getElementById('lobby').classList.contains('open')){
+      const badge=document.getElementById('connBadge');
+      badge.textContent=t('badgeLocal');
+    }
+  } else {
+    document.getElementById('handTitle1').textContent = myPlayer===0 ? t('handMine',{n:1}) : t('handOpp',{n:1});
+    document.getElementById('handTitle2').textContent = myPlayer===1 ? t('handMine',{n:2}) : t('handOpp',{n:2});
+    document.getElementById('scoreName1').textContent = myPlayer===0 ? t('scoreYou',{n:1}) : t('scoreOpp',{n:1});
+    document.getElementById('scoreName2').textContent = myPlayer===1 ? t('scoreYou',{n:2}) : t('scoreOpp',{n:2});
+    const badge=document.getElementById('connBadge');
+    badge.textContent = mode==='host' ? t('badgeHost',{code:roomCode}) : t('badgeGuest');
+  }
+}
+function toggleLang(){
+  lang = lang==='pt' ? 'en' : 'pt';
+  applyLang();
+}
+
+/* ---------------- Lobby / init ---------------- */
 function hideLobby(){
   document.getElementById('lobby').classList.remove('open');
-  const badge=document.getElementById('connBadge');
-  if(mode==='local'){
-    badge.style.display='inline-block'; badge.textContent='MODO LOCAL';
-  } else {
-    badge.style.display='inline-block';
-    badge.textContent = (mode==='host'?`SALA ${roomCode} • VOCÊ É O J1`:`ONLINE • VOCÊ É O J2`);
-    document.getElementById('handTitle1').textContent = myPlayer===0 ? 'Sua mão — Jogador 1' : 'Jogador 1 (oponente)';
-    document.getElementById('handTitle2').textContent = myPlayer===1 ? 'Sua mão — Jogador 2' : 'Jogador 2 (oponente)';
-    document.getElementById('scoreName1').textContent = myPlayer===0 ? 'Você (J1)' : 'Oponente (J1)';
-    document.getElementById('scoreName2').textContent = myPlayer===1 ? 'Você (J2)' : 'Oponente (J2)';
-    if(myPlayer===1) document.getElementById('board').classList.add('flip');
-  }
+  document.getElementById('connBadge').style.display='inline-block';
+  if(mode!=='local' && myPlayer===1) document.getElementById('board').classList.add('flip');
+  applyIdentityLabels();
 }
 function startLocal(){ mode='local'; myPlayer=0; hideLobby(); newGame(); }
 function copyLink(){
   const url = location.origin + location.pathname + '?sala=' + roomCode;
   navigator.clipboard.writeText(url).then(()=>{
-    document.getElementById('copyBtn').textContent='✅ Link copiado!';
-    setTimeout(()=>document.getElementById('copyBtn').textContent='📋 Copiar link de convite',1600);
+    document.getElementById('copyBtn').textContent=t('copied');
+    setTimeout(()=>document.getElementById('copyBtn').textContent=t('copyLink'),1600);
   });
 }
 document.getElementById('joinCode').addEventListener('keydown', e=>{ if(e.key==='Enter') joinRoom(); });
 
-// entrada direta via link ?sala=CODIGO
 (function(){
-  const c = new URLSearchParams(location.search).get('sala');
+  const params = new URLSearchParams(location.search);
+  const forced = (params.get('lang')||'').toLowerCase();
+  if(forced==='en'||forced==='pt') lang=forced;
+  else lang = (navigator.language||'').toLowerCase().startsWith('pt') ? 'pt' : 'en';
+  applyLang();
+  const c = params.get('sala') || params.get('room');
   if(c){
     document.getElementById('lobbyHome').style.display='none';
     document.getElementById('lobbyJoin').style.display='flex';
